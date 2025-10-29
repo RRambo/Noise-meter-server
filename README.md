@@ -1,8 +1,6 @@
-# Kindergarten Sound Monitoring API
+# Kindergarten Sound Meter
 
-A RESTful API backend for monitoring sound levels in kindergarten rooms. Built with Go and SQLite.
-
-## Project Overview
+For now, the code in this repo is a RESTful API backend for monitoring sound levels in kindergarten rooms. Built with Go and SQLite.
 
 This system supports an IoT device (Arduino with sound sensor) that measures noise levels in kindergarten rooms. When sound exceeds a threshold, data is sent to the server for logging and analysis.
 
