@@ -115,6 +115,9 @@ func (r *DataRepository) Create(data *models.Data, ctx context.Context) error {
 	if data.Threshold == 0 {
 		data.Threshold = 70.0
 	}
+	if data.SoundLevel >= data.Threshold {
+		data.IsAlert = true
+	}
 	if data.MeasureTime == "" {
 		data.MeasureTime = time.Now().Format(time.RFC3339)
 		//Fill with current time if not provided

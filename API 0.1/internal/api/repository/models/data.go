@@ -11,6 +11,7 @@ type Data struct {
 	MeasureTime string  `json:"measure_time"` // Time of measurement
 	IsAlert     bool    `json:"is_alert"`     // Whether the sound level exceeds the threshold
 	// Need to figure out how to make this be calculated and filled by the soundlevel&threshold system
+	// Done and tested but I feel like it's too rough. If needed, check internal\api\repository\DAL\SQLite\data.go line 115 for the logic fot this.
 	Description string `json:"description"` // Additional information
 }
 
