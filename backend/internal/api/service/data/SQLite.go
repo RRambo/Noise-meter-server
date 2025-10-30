@@ -39,6 +39,9 @@ func (ds *DataServiceSQLite) ReadOne(id int, ctx context.Context) (*models.Data,
 	// Tämä ohjaa toimintaa älykkäästi, esim. jos data on tietynlaista, niin tehdään jotain
 	// (What do these mean??)
 
+	// We do something to the data, we deduce something from the data!!!
+	// This guides the operation intelligently, for example, if the data is of a certain type, then we do something
+
 	return data, nil
 }
 
