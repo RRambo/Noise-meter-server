@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"goapi/internal/api/handlers/data"
+	"goapi/internal/api/handlers/locations"
 	"goapi/internal/api/middleware"
 	"goapi/internal/api/service"
 	"log"
@@ -26,6 +27,11 @@ func NewServer(ctx context.Context, sf *service.ServiceFactory, logger *log.Logg
 	middlewares := []middleware.Middleware{
 		middleware.BasicAuthenticationMiddleware,
 		middleware.CommonMiddleware,
+	}
+
+	err = setupLocationHandlers(mux, sf, logger)
+	if err != nil {
+		logger.Fatalf("Error setting up location handlers: %v", err)
 	}
 
 	return &Server{
@@ -74,4 +80,24 @@ func setupDataHandlers(mux *http.ServeMux, sf *service.ServiceFactory, logger *l
 		data.DeleteHandler(w, r, logger, ds)
 	})
 	return err
+
+}
+
+func setupLocationHandlers(mux *http.ServeMux, sf *service.ServiceFactory, logger *log.Logger) error {
+	ls, err := sf.CreateLocationService()
+	if err != nil {
+		return err
+	}
+
+	mux.HandleFunc("GET /locations", func(w http.ResponseWriter, r *http.Request) {
+		locations.GetLocationsHandler(w, r, logger, ls)
+	})
+	mux.HandleFunc("POST /locations", func(w http.ResponseWriter, r *http.Request) {
+		locations.CreateLocationHandler(w, r, logger, ls)
+	})
+	mux.HandleFunc("PUT /locations/{id}", func(w http.ResponseWriter, r *http.Request) {
+		locations.SetChosenLocationHandler(w, r, logger, ls)
+	})
+
+	return nil
 }

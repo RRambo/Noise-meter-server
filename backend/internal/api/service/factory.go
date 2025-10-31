@@ -44,3 +44,11 @@ func (sf *ServiceFactory) CreateDataService(serviceType DataServiceType) (*servi
 		return nil, service.DataError{Message: "Invalid data service type."}
 	}
 }
+
+func (sf *ServiceFactory) CreateLocationService() (*service.LocationServiceSQLite, error) {
+	repo, err := SQLite.NewLocationRepository(sf.db, sf.ctx)
+	if err != nil {
+		return nil, err
+	}
+	return service.NewLocationServiceSQLite(repo), nil
+}

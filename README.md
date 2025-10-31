@@ -90,7 +90,7 @@ go test -v ./internal/api/handlers/data
 
 ## Validation Rules
 
-- **device_id:** Required, max 50 characters
+- **device_id:** Defaultly "arduino_001"
 - **room_name:** Required
 - **sound_level:** Required, 0-150 dB
 - **threshold:** Required, 0-150 dB
