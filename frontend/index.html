@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="user interface">
+    <title>Noise-Meter User Interface</title>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <!--Form for adding locations-->
+    <div>
+        <form id="addLocationForm">
+            <input id="newLocation" type="text" placeholder="Add location" required>
+            <button id="addLocation" type="submit">Add</button>
+        </form>
+    </div>
+
+    <!--Dropdown menu for changing location-->
+    <div>
+        Choose location
+        <br>
+        <label>Current location: </label>
+        <select id="locationSelect">
+            <!--<option value="1" text="location1"></option>-->
+        </select>
+    </div>
+    
+    <script src="script.js"></script>
+</body>
+
+</html>
