@@ -25,8 +25,8 @@ func NewServer(ctx context.Context, sf *service.ServiceFactory, logger *log.Logg
 	}
 
 	middlewares := []middleware.Middleware{
-		middleware.BasicAuthenticationMiddleware,
 		middleware.CommonMiddleware,
+		middleware.BasicAuthenticationMiddleware,
 	}
 
 	err = setupLocationHandlers(mux, sf, logger)

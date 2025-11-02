@@ -1,0 +1,11 @@
+body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-family: 'Times New Roman', Times, serif, sans-serif;
+    padding: 20px;
+    margin: 20px;
+    background-color: #f0f8ff;
+}
+
+/* Just for testing styles document, fee free to change style. */

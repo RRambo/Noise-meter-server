@@ -15,26 +15,28 @@ func ChainMiddleware(h http.Handler, middlewares ...Middleware) http.Handler {
 }
 
 func CommonMiddleware(next http.Handler) http.Handler {
-
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-		// * If type is Option return, no need for authentication or content type validation *
+		// ALWAYS set CORS headers first, for ALL requests
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
+
+		// Handle preflight OPTIONS request immediately
 		if r.Method == http.MethodOptions {
-			next.ServeHTTP(w, r)
+			w.WriteHeader(http.StatusOK)
 			return
 		}
 
-		// * The request body should be JSON, and the Content-Type header must start with: application/json *
+		// For non-OPTIONS requests, validate Content-Type
 		if !strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
 			w.WriteHeader(http.StatusUnsupportedMediaType)
 			w.Write([]byte(`{"error": "Content-Type header should be set to: application/json."}`))
 			return
 		}
 
-		// * Set the Content-Type header of the response to application/json for all responses
-		// * On http.Error("..."), the Content-Type header will be set to text/plain; charset=utf-8
-		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		// Continue to next handler
 		next.ServeHTTP(w, r)
 	})
 }

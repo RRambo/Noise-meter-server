@@ -7,16 +7,31 @@ import (
 
 // * Implementation of DataService for SQLite database *
 type DataServiceSQLite struct {
-	repo models.DataRepository
+	repo         models.DataRepository
+	locationRepo models.LocationRepository // Add locationRepo for accessing locations
 }
 
-func NewDataServiceSQLite(repo models.DataRepository) *DataServiceSQLite {
+func NewDataServiceSQLite(repo models.DataRepository, locationRepo models.LocationRepository) *DataServiceSQLite {
 	return &DataServiceSQLite{
-		repo: repo,
+		repo:         repo,
+		locationRepo: locationRepo,
 	}
 }
 
 func (ds *DataServiceSQLite) Create(data *models.Data, ctx context.Context) error {
+	// If no room_name provided, set it as current chosen location
+	if data.RoomName == "" {
+		if ds.locationRepo != nil {
+			loc, err := ds.locationRepo.GetChosenLocation(ctx)
+			if err == nil && loc != nil && loc.Name != "" {
+				data.RoomName = loc.Name
+			} else {
+				data.RoomName = "Unknown" // fallback if no chosen location
+			}
+		} else {
+			data.RoomName = "Unknown"
+		}
+	}
 
 	if err := ds.ValidateData(data); err != nil {
 		return DataError{Message: "Invalid data: " + err.Error()}

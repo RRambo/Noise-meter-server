@@ -1,22 +1,27 @@
 # Kindergarten Sound Meter
 
-For now, the code in this repo is a RESTful API backend for monitoring sound levels in kindergarten rooms. Built with Go and SQLite.
-
 This system supports an IoT device (Arduino with sound sensor) that measures noise levels in kindergarten rooms. When sound exceeds a threshold, data is sent to the server for logging and analysis.
+
+This repository contains:
+- A RESTful API backend for monitoring sound levels in kindergarten rooms, built with Go and SQLite.
+- A frontend user interface for managing locations, configuring the noise meter, and viewing results and summaries.
 
 ### Features
 
-- RESTful API with full CRUD operations
+- RESTful API with full CRUD operations for sound data
 - SQLite database for data persistence
 - Basic authentication
 - Sound level validation (0-150 dB range)
 - Automatic timestamping
 - Alert flagging when threshold exceeded
+- **Location management:** Add, select, and manage room locations via `/locations` endpoint and frontend dropdown
+- **Frontend:** Simple web UI for location selection and management
 
 ## Technology Stack
 
 - **Language:** Go 1.x
 - **Database:** SQLite
+- **Frontend:** HTML, CSS, JavaScript
 - **Architecture:** Handler-Service-Repository pattern
 - **Testing:** Go testing framework
 - **Authentication:** HTTP Basic Auth
@@ -31,13 +36,16 @@ All endpoints require Basic Authentication:
 
 ### Endpoints
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/data` | Get all sound measurements |
-| GET | `/data/{id}` | Get specific measurement |
-| POST | `/data` | Create new measurement |
-| PUT | `/data` | Update existing measurement |
-| DELETE | `/data/{id}` | Delete measurement |
+| Method | Endpoint         | Description                        |
+|--------|------------------|------------------------------------|
+| GET    | `/data`          | Get all sound measurements         |
+| GET    | `/data/{id}`     | Get specific measurement           |
+| POST   | `/data`          | Create new measurement             |
+| PUT    | `/data`          | Update existing measurement        |
+| DELETE | `/data/{id}`     | Delete measurement                 |
+| GET    | `/locations`     | Get all locations                  |
+| POST   | `/locations`     | Add a new location                 |
+| PUT    | `/locations/{id}`| Set a location as currently chosen |
 
 ### Data Model
 
@@ -60,7 +68,7 @@ All endpoints require Basic Authentication:
 
 ```bash
 curl -X POST http://localhost:8080/data \
-  -u kindergarten_admin:sound_monitor_2025 \
+  -u kids_noisemeter_admin:passwordkids \
   -H "Content-Type: application/json" \
   -d '{
     "device_id": "arduino_001",
@@ -73,25 +81,36 @@ curl -X POST http://localhost:8080/data \
   }'
 ```
 
-## Testing
-
-### Run Unit Tests
+**Add a Location:**
 
 ```bash
-# Run all tests
-go test ./...
-
-# Run with verbose output
-go test -v ./...
-
-# Run specific package tests
-go test -v ./internal/api/handlers/data
+curl -X POST http://localhost:8080/locations \
+  -u kids_noisemeter_admin:passwordkids \
+  -H "Content-Type: application/json" \
+  -d '{ "name": "PlayRoom_A", "chosen": true }'
 ```
+
+**Set Chosen Location:**
+
+```bash
+curl -X PUT http://localhost:8080/locations/1 \
+  -u kids_noisemeter_admin:passwordkids \
+  -H "Content-Type: application/json"
+```
+
+## Frontend
+
+A simple web UI is provided in the `frontend/` folder. It allows users to:
+- Add new locations
+- Select the current location (which is used as the default for new sound measurements)
+- View and manage locations via a dropdown menu
+
+To use the frontend, open `frontend/index.html` in your browser. Ensure the backend server is running on `localhost:8080`.
 
 ## Validation Rules
 
-- **device_id:** Defaultly "arduino_001"
-- **room_name:** Required
+- **device_id:** Defaults to "arduino_001" if not provided
+- **room_name:** Required (auto-filled with current chosen location if omitted)
 - **sound_level:** Required, 0-150 dB
 - **threshold:** Required, 0-150 dB
 - **measure_time:** Auto-generated if not provided
@@ -102,7 +121,7 @@ go test -v ./internal/api/handlers/data
 
 ### Change Authentication Credentials
 
-Edit `internal/api/middleware/auth.go`:
+Edit `internal/api/middleware/basic_authentication.go`:
 
 ```go
 func validateUser(username, password string) bool {
@@ -114,7 +133,7 @@ func validateUser(username, password string) bool {
 
 Database file: `cmd/api/production.db`
 
-To reset database: Delete the file and restart the server (new empty database will be created).
+To reset database: Delete the file and restart the server (a new empty database will be created).
 
 ## Development Notes
 
@@ -124,6 +143,7 @@ The system automatically provides defaults for:
 - `device_id`: "arduino_001"
 - `threshold`: 70.0 dB
 - `measure_time`: Current timestamp
+- `room_name`: Current chosen location (if not provided)
 
 ### Logging
 
@@ -133,7 +153,6 @@ Server logs are written to:
 
 ## Future Enhancements
 
-For identified future enhancements, search "need" in codebase. They are written in comments.
 - [ ] Daily summary endpoint for educators
 - [ ] Room-based filtering queries
 - [ ] Environment variable configuration
@@ -146,4 +165,4 @@ Educational project for Intelligent Devices course.
 
 ---
 
-**Last Updated:** 29/10/2025
+**Last Updated:** 02/11/2025
