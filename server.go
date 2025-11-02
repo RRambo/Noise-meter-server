@@ -19,6 +19,7 @@ type Server struct {
 
 func NewServer(ctx context.Context, sf *service.ServiceFactory, logger *log.Logger) *Server {
 
+	// The API_URL in script.js needs to be changed to 'http://localhost:8080/api'
 	// Create a separate mux for API so we can apply authentication middleware
 	apiMux := http.NewServeMux()
 	if err := setupDataHandlers(apiMux, sf, logger); err != nil {
@@ -140,3 +141,4 @@ func setupLocationHandlers(mux *http.ServeMux, sf *service.ServiceFactory, logge
 
 	return nil
 }
+
