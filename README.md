@@ -67,7 +67,7 @@ All endpoints require Basic Authentication:
 **Create Sound Measurement:**
 
 ```bash
-curl -X POST http://localhost:8080/data \
+curl -X POST http://localhost:8080/api/data \
   -u kids_noisemeter_admin:passwordkids \
   -H "Content-Type: application/json" \
   -d '{
@@ -84,7 +84,7 @@ curl -X POST http://localhost:8080/data \
 **Add a Location:**
 
 ```bash
-curl -X POST http://localhost:8080/locations \
+curl -X POST http://localhost:8080/api/locations \
   -u kids_noisemeter_admin:passwordkids \
   -H "Content-Type: application/json" \
   -d '{ "name": "PlayRoom_A", "chosen": true }'
@@ -93,7 +93,7 @@ curl -X POST http://localhost:8080/locations \
 **Set Chosen Location:**
 
 ```bash
-curl -X PUT http://localhost:8080/locations/1 \
+curl -X PUT http://localhost:8080/api/locations/1 \
   -u kids_noisemeter_admin:passwordkids \
   -H "Content-Type: application/json"
 ```
