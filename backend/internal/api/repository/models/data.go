@@ -1,5 +1,8 @@
 package models
 
+// Though this file is named data, it contains only the sound data.
+// At this point I'll leave it like this. If we rename it it will require far more changes on other files.
+
 import "context"
 
 type Data struct {

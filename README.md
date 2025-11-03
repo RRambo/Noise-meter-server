@@ -38,14 +38,14 @@ All endpoints require Basic Authentication:
 
 | Method | Endpoint         | Description                        |
 |--------|------------------|------------------------------------|
-| GET    | `/data`          | Get all sound measurements         |
-| GET    | `/data/{id}`     | Get specific measurement           |
-| POST   | `/data`          | Create new measurement             |
-| PUT    | `/data`          | Update existing measurement        |
-| DELETE | `/data/{id}`     | Delete measurement                 |
-| GET    | `/locations`     | Get all locations                  |
-| POST   | `/locations`     | Add a new location                 |
-| PUT    | `/locations/{id}`| Set a location as currently chosen |
+| GET    | `/api/data`          | Get all sound measurements         |
+| GET    | `/api/data/{id}`     | Get specific measurement           |
+| POST   | `/api/data`          | Create new measurement             |
+| PUT    | `/api/data`          | Update existing measurement        |
+| DELETE | `/api/data/{id}`     | Delete measurement                 |
+| GET    | `/api/locations`     | Get all locations                  |
+| POST   | `/api/locations`     | Add a new location                 |
+| PUT    | `/api/locations/{id}`| Set a location as currently chosen |
 
 ### Data Model
 

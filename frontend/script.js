@@ -52,7 +52,7 @@ fetch('/api/locations', {
 //     // Change chosen location based on locationId
 // });
 
-const API_URL = 'http://localhost:8080'; 
+const API_URL = 'http://localhost:8080/api'; 
 // Adjust the URL as needed
 const AUTH = btoa('kids_noisemeter_admin:passwordkids');
 

@@ -8,6 +8,7 @@ import (
 	"goapi/internal/api/service"
 	"log"
 	"net/http"
+	"path/filepath"
 )
 
 type Server struct {
@@ -18,27 +19,39 @@ type Server struct {
 
 func NewServer(ctx context.Context, sf *service.ServiceFactory, logger *log.Logger) *Server {
 
-	mux := http.NewServeMux()
-	err := setupDataHandlers(mux, sf, logger)
-	if err != nil {
+	// The API_URL in script.js needs to be changed to 'http://localhost:8080/api'
+	// Create a separate mux for API so we can apply authentication middleware
+	apiMux := http.NewServeMux()
+	if err := setupDataHandlers(apiMux, sf, logger); err != nil {
 		logger.Fatalf("Error setting up data handlers: %v", err)
 	}
-
-	middlewares := []middleware.Middleware{
-		middleware.CommonMiddleware,
-		middleware.BasicAuthenticationMiddleware,
-	}
-
-	err = setupLocationHandlers(mux, sf, logger)
-	if err != nil {
+	if err := setupLocationHandlers(apiMux, sf, logger); err != nil {
 		logger.Fatalf("Error setting up location handlers: %v", err)
 	}
+
+	// Main mux serves static files at root and mounts the API under /api/
+	mux := http.NewServeMux()
+
+	// Serve frontend static files from a hardcoded path relative to where we start
+	// the server from `backend\cmd\api` (this points to the repo-level `frontend`).
+	frontendDir := filepath.Join("..", "..", "..", "frontend")
+	absFrontendDir, _ := filepath.Abs(frontendDir)
+	logger.Println("Serving frontend from:", absFrontendDir)
+	fs := http.FileServer(http.Dir(absFrontendDir))
+	mux.Handle("/", fs)
+
+	// Wrap the apiMux with the authentication & common middlewares and mount under /api/
+	middlewares := []middleware.Middleware{
+		middleware.BasicAuthenticationMiddleware,
+		middleware.CommonMiddleware,
+	}
+	mux.Handle("/api/", http.StripPrefix("/api", middleware.ChainMiddleware(apiMux, middlewares...)))
 
 	return &Server{
 		ctx:    ctx,
 		logger: logger,
 		HTTPServer: &http.Server{
-			Handler: middleware.ChainMiddleware(mux, middlewares...),
+			Handler: mux,
 		},
 	}
 }
@@ -61,24 +74,36 @@ func setupDataHandlers(mux *http.ServeMux, sf *service.ServiceFactory, logger *l
 		return err
 	}
 
-	mux.HandleFunc("OPTIONS /*", func(w http.ResponseWriter, r *http.Request) {
-		data.OptionsHandler(w, r)
+	// List, create, update data
+	mux.HandleFunc("/data", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			data.GetHandler(w, r, logger, ds)
+		case http.MethodPost:
+			data.PostHandler(w, r, logger, ds)
+		case http.MethodPut:
+			data.PutHandler(w, r, logger, ds)
+		case http.MethodOptions:
+			data.OptionsHandler(w, r)
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
 	})
-	mux.HandleFunc("POST /data", func(w http.ResponseWriter, r *http.Request) {
-		data.PostHandler(w, r, logger, ds)
+
+	// Operations on single resource (id in path)
+	mux.HandleFunc("/data/{id}", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			data.GetByIDHandler(w, r, logger, ds)
+		case http.MethodDelete:
+			data.DeleteHandler(w, r, logger, ds)
+		case http.MethodOptions:
+			data.OptionsHandler(w, r)
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
 	})
-	mux.HandleFunc("PUT /data", func(w http.ResponseWriter, r *http.Request) {
-		data.PutHandler(w, r, logger, ds)
-	})
-	mux.HandleFunc("GET /data", func(w http.ResponseWriter, r *http.Request) {
-		data.GetHandler(w, r, logger, ds)
-	})
-	mux.HandleFunc("GET /data/{id}", func(w http.ResponseWriter, r *http.Request) {
-		data.GetByIDHandler(w, r, logger, ds)
-	})
-	mux.HandleFunc("DELETE /data/{id}", func(w http.ResponseWriter, r *http.Request) {
-		data.DeleteHandler(w, r, logger, ds)
-	})
+
 	return err
 
 }
@@ -89,14 +114,29 @@ func setupLocationHandlers(mux *http.ServeMux, sf *service.ServiceFactory, logge
 		return err
 	}
 
-	mux.HandleFunc("GET /locations", func(w http.ResponseWriter, r *http.Request) {
-		locations.GetLocationsHandler(w, r, logger, ls)
+	mux.HandleFunc("/locations", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			locations.GetLocationsHandler(w, r, logger, ls)
+		case http.MethodPost:
+			locations.CreateLocationHandler(w, r, logger, ls)
+		case http.MethodOptions:
+			// Allow preflight
+			w.WriteHeader(http.StatusOK)
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
 	})
-	mux.HandleFunc("POST /locations", func(w http.ResponseWriter, r *http.Request) {
-		locations.CreateLocationHandler(w, r, logger, ls)
-	})
-	mux.HandleFunc("PUT /locations/{id}", func(w http.ResponseWriter, r *http.Request) {
-		locations.SetChosenLocationHandler(w, r, logger, ls)
+
+	mux.HandleFunc("/locations/{id}", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPut:
+			locations.SetChosenLocationHandler(w, r, logger, ls)
+		case http.MethodOptions:
+			w.WriteHeader(http.StatusOK)
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
 	})
 
 	return nil
