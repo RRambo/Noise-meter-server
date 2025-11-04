@@ -99,6 +99,7 @@ function loadLocations() {
         .catch(error => {
             console.error('Error fetching locations:', error);
             alert('Failed to load locations. Make sure the backend server is running.');
+            // this alert will also show if the locations table is empty
         });
 }
 
@@ -107,17 +108,26 @@ function loadLocationsList() {
     const list = document.getElementById("locationList");
     const toggle = document.getElementById("toggleBtn");
     list.innerHTML = ''; // Clear list
+    if (locations.length > 0) toggle.innerHTML = ''; // Clear button text
+
     locations.forEach(location => {
         const li = document.createElement("li");
         li.setAttribute("role", "option");
         li.dataset.id = location.id;
-        li.className = "location-item";
+        li.className = "location-item list-element";
         li.innerHTML = `
-        <span class="locationName">${location.name}</span>
+        <span class="locationName text-center">${location.name}</span>
         <button class="delete" title="Delete ${location.name}">X</button>
         `;
-        li.querySelector(".locationName").addEventListener("click", () => {
+
+        if (location.chosen) {
             toggle.textContent = location.name + " ▾";
+            console.log("Chosen location loaded: " + location.name);
+        }
+
+        li.addEventListener("click", () => {
+            toggle.textContent = location.name + " ▾";
+            changeChosenLocation(location.id);
             list.hidden = true;
         });
         li.querySelector(".delete").addEventListener("click", (event) => {
@@ -207,8 +217,9 @@ document.getElementById("addLocationForm").addEventListener("submit", function (
 });
 
 // Handle changing the chosen location
-document.getElementById("locationSelect").addEventListener("change", function (event) {
-    const locationId = event.target.value;
+//document.getElementById("toggleBtn").addEventListener("change", function (event) {
+    //const locationId = event.target.value;
+function changeChosenLocation(locationId) {
 
     fetch(`${API_URL}/locations/${locationId}`, {
         method: 'PUT',
@@ -228,4 +239,4 @@ document.getElementById("locationSelect").addEventListener("change", function (e
             console.error('Error updating location:', error);
             alert('Failed to update location.');
         });
-});
+};

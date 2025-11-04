@@ -8,4 +8,57 @@ body {
     background-color: #f0f8ff;
 }
 
+.list-element {
+    list-style-type: none;
+    padding-left: 5px;
+    padding-right: 5px;;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border: 1px solid #ccc;
+    margin-bottom: 5px;
+    margin-top: 5px;
+    border-radius: 4px;
+    cursor: pointer;
+    background-color: #fff;
+}
+
+.delete {
+    background: transparent;
+    border: none;
+    color: #b00;
+    cursor: pointer;
+    padding: 4px;
+
+}
+
+.dropdown {
+    position: relative;
+    width: 200px;
+    margin: 0 auto;
+    text-align: left;
+    box-sizing: border-box;
+}
+
+#toggleBtn {
+    display: block;
+    width: 100%;
+    padding: 8px 12px;
+    box-sizing: border-box;
+    text-align: center;
+}
+
+#locationList {
+    position: absolute;
+    left: 0;
+    right: 0;
+    margin: 4px 0 0 0;
+    padding: 0;
+    list-style: none;
+    max-height: 220px;
+    overflow: auto;
+    z-index: 50;
+    box-sizing: border-box;
+}
+
 /* Just for testing styles document, fee free to change style. */
