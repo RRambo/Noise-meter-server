@@ -46,6 +46,7 @@ All endpoints require Basic Authentication:
 | GET    | `/api/locations`     | Get all locations                  |
 | POST   | `/api/locations`     | Add a new location                 |
 | PUT    | `/api/locations/{id}`| Set a location as currently chosen |
+| DELETE | `/api/locations/{id}`| Delete a location                  |
 
 ### Data Model
 
