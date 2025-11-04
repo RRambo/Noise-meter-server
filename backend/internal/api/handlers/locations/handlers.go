@@ -1,17 +1,20 @@
 package locations
 
 import (
+	"context"
 	"encoding/json"
 	"goapi/internal/api/repository/models"
 	"log"
 	"net/http"
 	"strconv"
+	"time"
 )
 
 type LocationService interface {
 	CreateLocation(location *models.Location) error
 	GetAllLocations() ([]*models.Location, error)
 	SetChosenLocation(id int) error
+	DeleteLocation(location *models.Location, ctx context.Context) (int64, error)
 }
 
 func GetLocationsHandler(w http.ResponseWriter, r *http.Request, logger *log.Logger, svc LocationService) {
@@ -62,4 +65,32 @@ func SetChosenLocationHandler(w http.ResponseWriter, r *http.Request, logger *lo
 
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(`{"message": "Chosen location updated"}`))
+}
+func DeleteHandler(w http.ResponseWriter, r *http.Request, logger *log.Logger, svc LocationService) {
+	idStr := r.PathValue("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, `{"error": "Invalid location ID"}`, http.StatusBadRequest)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+	defer cancel()
+
+	aff, err := svc.DeleteLocation(&models.Location{ID: int64(id)}, ctx)
+	if err != nil {
+		logger.Println("Could not delete location:", err, id)
+		http.Error(w, "Internal Server error", http.StatusInternalServerError)
+		return
+	}
+
+	// * Check if the data was found and deleted
+	if aff == 0 {
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte(`{"error": "Resource not found."}`))
+		return
+	}
+
+	// * This is a Success, response in JSON and with a 204 status code when location was successfully deleted
+	w.WriteHeader(http.StatusNoContent)
 }

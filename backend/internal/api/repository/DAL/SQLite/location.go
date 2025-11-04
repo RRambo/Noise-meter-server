@@ -131,3 +131,17 @@ func (r *LocationRepository) SetChosenLocation(id int64, ctx context.Context) er
 
 	return tx.Commit()
 }
+
+func (r *LocationRepository) DeleteLocation(location *models.Location, ctx context.Context) (int64, error) {
+	res, err := r.sqlDB.ExecContext(ctx, "DELETE FROM locations WHERE id = ?", location.ID)
+	if err != nil {
+		return 0, err
+	}
+
+	// get number of affected rows
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return 0, err
+	}
+	return rowsAffected, nil
+}

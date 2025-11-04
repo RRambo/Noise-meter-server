@@ -134,6 +134,8 @@ func setupLocationHandlers(mux *http.ServeMux, sf *service.ServiceFactory, logge
 			locations.SetChosenLocationHandler(w, r, logger, ls)
 		case http.MethodOptions:
 			w.WriteHeader(http.StatusOK)
+		case http.MethodDelete:
+			locations.DeleteHandler(w, r, logger, ls)
 		default:
 			w.WriteHeader(http.StatusMethodNotAllowed)
 		}

@@ -13,4 +13,5 @@ type LocationRepository interface {
 	GetAllLocations(ctx context.Context) ([]*Location, error)
 	GetChosenLocation(ctx context.Context) (*Location, error)
 	SetChosenLocation(id int64, ctx context.Context) error
+	DeleteLocation(location *Location, ctx context.Context) (int64, error)
 }

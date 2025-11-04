@@ -33,3 +33,7 @@ func (s *LocationServiceSQLite) GetAllLocations() ([]*models.Location, error) {
 func (s *LocationServiceSQLite) SetChosenLocation(id int) error {
 	return s.repo.SetChosenLocation(int64(id), s.ctx)
 }
+
+func (s *LocationServiceSQLite) DeleteLocation(location *models.Location, ctx context.Context) (int64, error) {
+	return s.repo.DeleteLocation(location, ctx)
+}

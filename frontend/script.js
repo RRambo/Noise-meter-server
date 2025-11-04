@@ -52,15 +52,16 @@ fetch('/api/locations', {
 //     // Change chosen location based on locationId
 // });
 
-const API_URL = 'http://localhost:8080/api'; 
+const API_URL = 'http://localhost:8080/api';
 // Adjust the URL as needed
 const AUTH = btoa('kids_noisemeter_admin:passwordkids');
+const locations = [];
 
 //Load locations on page load
 window.addEventListener('DOMContentLoaded', loadLocations);
 
-function loadLocations()
-{
+// fetch locations from backend
+function loadLocations() {
     fetch(`${API_URL}/locations`,
         {
             method: 'GET',
@@ -76,6 +77,11 @@ function loadLocations()
             return response.json();
         })
         .then(data => {
+            locations.length = 0; // Clear locations array
+            data.locations.forEach(location => locations.push(location));
+            loadLocationsList();
+
+            // --> function for old dropdown menu
             const locationSelect = document.getElementById("locationSelect");
             locationSelect.innerHTML = ''; // Clear existing options
             
@@ -88,6 +94,7 @@ function loadLocations()
                 }
                 locationSelect.add(option);
             });
+            // <-- function for old dropdown menu
         })
         .catch(error => {
             console.error('Error fetching locations:', error);
@@ -95,50 +102,114 @@ function loadLocations()
         });
 }
 
+// create a dropdown menu with delete buttons for locations 
+function loadLocationsList() {
+    const list = document.getElementById("locationList");
+    const toggle = document.getElementById("toggleBtn");
+    list.innerHTML = ''; // Clear list
+    locations.forEach(location => {
+        const li = document.createElement("li");
+        li.setAttribute("role", "option");
+        li.dataset.id = location.id;
+        li.className = "location-item";
+        li.innerHTML = `
+        <span class="locationName">${location.name}</span>
+        <button class="delete" title="Delete ${location.name}">X</button>
+        `;
+        li.querySelector(".locationName").addEventListener("click", () => {
+            toggle.textContent = location.name + " ▾";
+            list.hidden = true;
+        });
+        li.querySelector(".delete").addEventListener("click", (event) => {
+            event.stopPropagation();
+            deleteLocation(location.id, location.name);
+        });
+        list.appendChild(li);
+    });
+}
+
+// handle deleting a location
+function deleteLocation(id, name) {
+    if (!confirm(`Are you sure you want to delete location (${name})?`)) return;
+
+    // checking location exists
+    const index = locations.findIndex(location => location.id === id);
+    if (index === -1) {
+        console.error(`Location with id ${id} not found`);
+        return;
+    }
+
+    // removes deleted locations from the array
+    const [removed] = locations.splice(index, 1);
+    loadLocationsList();
+
+    // calls the deletion request in the backend
+    fetch(`${API_URL}/locations/${id}`, {
+        method: 'DELETE',
+        headers: {
+            'Authorization': `Basic ${AUTH}`,
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => { if (!response.ok) throw new Error('Failed to delete location'); })
+    .catch(error => {
+        locations.splice(index, 0, removed);
+        loadLocationsList();
+        alert('Failed to delete location; location restored');
+        console.error(error);
+    }); 
+}
+
+// opening dropdown menu
+document.getElementById("toggleBtn").addEventListener("click", () => {
+    const list = document.getElementById("locationList");
+    list.hidden = !list.hidden;
+});
+
 // Handle adding a new location
-document.getElementById("addLocationForm").addEventListener("submit", function (event){
+document.getElementById("addLocationForm").addEventListener("submit", function (event) {
     event.preventDefault();
 
     const locationName = document.getElementById("newLocation").value;
 
-    fetch(`${API_URL}/locations`, 
-    {
-        method: 'POST',
-        headers:
+    fetch(`${API_URL}/locations`,
         {
-            'Authorization': `Basic ${AUTH}`,
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify
-        ({ 
-            name: locationName,
-            chosen: true 
+            method: 'POST',
+            headers:
+            {
+                'Authorization': `Basic ${AUTH}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify
+                ({
+                    name: locationName,
+                    chosen: true
+                })
         })
-    })
 
-    .then(response => {
-        if (!response.ok) throw new Error('Failed to add location');
-        return response.json();
-    })
+        .then(response => {
+            if (!response.ok) throw new Error('Failed to add location');
+            return response.json();
+        })
 
-    .then(data => {
-        console.log('Location added: ', data);
-        document.getElementById("newLocation").value = '';
-        // Clear input
-        loadLocations();
-        // Reload locations list
-    })
+        .then(data => {
+            console.log('Location added: ', data);
+            document.getElementById("newLocation").value = '';
+            // Clear input
+            loadLocations();
+            // Reload locations list
+        })
 
-    .catch(error => {
-        console.error('Error adding location:', error);
-        alert('Failed to add location.');
-    });
+        .catch(error => {
+            console.error('Error adding location:', error);
+            alert('Failed to add location.');
+        });
 });
 
 // Handle changing the chosen location
 document.getElementById("locationSelect").addEventListener("change", function (event) {
     const locationId = event.target.value;
-    
+
     fetch(`${API_URL}/locations/${locationId}`, {
         method: 'PUT',
         headers: {
@@ -146,15 +217,15 @@ document.getElementById("locationSelect").addEventListener("change", function (e
             'Content-Type': 'application/json'
         }
     })
-    .then(response => {
-        if (!response.ok) throw new Error('Failed to update location');
-        return response.json();
-    })
-    .then(data => {
-        console.log('Location updated:', data);
-    })
-    .catch(error => {
-        console.error('Error updating location:', error);
-        alert('Failed to update location.');
-    });
+        .then(response => {
+            if (!response.ok) throw new Error('Failed to update location');
+            return response.json();
+        })
+        .then(data => {
+            console.log('Location updated:', data);
+        })
+        .catch(error => {
+            console.error('Error updating location:', error);
+            alert('Failed to update location.');
+        });
 });
