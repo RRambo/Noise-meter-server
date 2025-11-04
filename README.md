@@ -105,7 +105,7 @@ A simple web UI is provided in the `frontend/` folder. It allows users to:
 - Select the current location (which is used as the default for new sound measurements)
 - View and manage locations via a dropdown menu
 
-To use the frontend, open `frontend/index.html` in your browser. Ensure the backend server is running on `localhost:8080`.
+To use the frontend, open `frontend/index.html` or `http://localhost:8080` in your browser. Ensure the backend server is running on `localhost:8080`.
 
 ## Validation Rules
 
