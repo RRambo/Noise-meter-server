@@ -4,9 +4,9 @@ This system supports an IoT device (Arduino with sound sensor) that measures noi
 
 This repository contains:
 - A RESTful API backend for monitoring sound levels in kindergarten rooms, built with Go and SQLite.
-- A frontend user interface for managing locations, configuring the noise meter, and viewing results and summaries.
+- A React-based frontend user interface for managing locations, configuring the noise meter, and viewing results and summaries.
 
-### Features
+## Features
 
 - RESTful API with full CRUD operations for sound data
 - SQLite database for data persistence
@@ -14,17 +14,112 @@ This repository contains:
 - Sound level validation (0-150 dB range)
 - Automatic timestamping
 - Alert flagging when threshold exceeded
-- **Location management:** Add, select, and manage room locations via `/locations` endpoint and frontend dropdown
-- **Frontend:** Simple web UI for location selection and management
+- **Location management:** Add, select, and manage room locations via `/api/locations` endpoint
+- **React Frontend:** Component-based UI with real-time updates
 
 ## Technology Stack
 
-- **Language:** Go 1.x
+- **Backend Language:** Go 1.x
 - **Database:** SQLite
-- **Frontend:** HTML, CSS, JavaScript
-- **Architecture:** Handler-Service-Repository pattern
+- **Frontend:** React 18, Axios, Bootstrap 5
+- **Architecture:** Handler-Service-Repository pattern (backend), Component-based (frontend)
 - **Testing:** Go testing framework
 - **Authentication:** HTTP Basic Auth
+
+## Installation & Setup
+
+### Prerequisites
+
+- Go 1.19 or higher
+- Node.js 16+ and npm
+- GCC compiler (MinGW or MSYS2 for Windows)
+
+### Backend Setup
+
+1. **Navigate to backend directory**
+   ```bash
+   cd backend
+   ```
+
+2. **Install Go dependencies**
+   ```bash
+   go mod download
+   ```
+
+3. **Enable CGO (if needed)**
+   ```bash
+   go env -w CGO_ENABLED=1
+   ```
+
+### Frontend Setup
+
+1. **Navigate to React frontend directory**
+   ```bash
+   cd frontend-react
+   ```
+
+2. **Install npm dependencies**
+   ```bash
+   npm install
+   ```
+
+## Running the Application
+
+### Development Mode (Recommended)
+
+Run backend and frontend separately with hot-reload enabled.
+
+#### 1. Start Backend Server
+
+```bash
+cd backend/cmd/api
+go run main.go
+```
+
+Backend runs on **http://localhost:8080**
+
+Server will output:
+```
+Starting server on :8080...
+```
+
+#### 2. Start React Development Server
+
+In a new terminal:
+
+```bash
+cd frontend-react
+npm start
+```
+
+Frontend runs on **http://localhost:3000**
+
+Browser will automatically open to http://localhost:3000
+
+**The React app automatically proxies API requests to the backend on port 8080.**
+
+### Production Mode
+
+For deployment, build React app and serve from Go server:
+
+1. **Build React app:**
+   ```bash
+   cd frontend-react
+   npm run build
+   ```
+
+2. **Configure Go server to serve React build** (see deployment documentation)
+
+3. **Run Go server:**
+   ```bash
+   cd backend/cmd/api
+   go run main.go
+   ```
+
+Access at **http://localhost:8080**
+
+Note that this is specifically for production and deployment, when develeoping, we are constantly updating the files within `frontend-react` and so couldn't keeping running `npm run build`.
+That's why we are using access at **http://localhost:3000** in development now.
 
 ## API Endpoints
 
@@ -36,17 +131,17 @@ All endpoints require Basic Authentication:
 
 ### Endpoints
 
-| Method | Endpoint         | Description                        |
-|--------|------------------|------------------------------------|
-| GET    | `/api/data`          | Get all sound measurements         |
-| GET    | `/api/data/{id}`     | Get specific measurement           |
-| POST   | `/api/data`          | Create new measurement             |
-| PUT    | `/api/data`          | Update existing measurement        |
-| DELETE | `/api/data/{id}`     | Delete measurement                 |
-| GET    | `/api/locations`     | Get all locations                  |
-| POST   | `/api/locations`     | Add a new location                 |
-| PUT    | `/api/locations/{id}`| Set a location as currently chosen |
-| DELETE | `/api/locations/{id}`| Delete a location                  |
+| Method | Endpoint                | Description                        |
+|--------|-------------------------|------------------------------------|
+| GET    | `/api/data`             | Get all sound measurements         |
+| GET    | `/api/data/{id}`        | Get specific measurement           |
+| POST   | `/api/data`             | Create new measurement             |
+| PUT    | `/api/data`             | Update existing measurement        |
+| DELETE | `/api/data/{id}`        | Delete measurement                 |
+| GET    | `/api/locations`        | Get all locations                  |
+| POST   | `/api/locations`        | Add a new location                 |
+| PUT    | `/api/locations/{id}`   | Set a location as currently chosen |
+| DELETE | `/api/locations/{id}`   | Delete a location                  |
 
 ### Data Model
 
@@ -63,7 +158,7 @@ All endpoints require Basic Authentication:
 }
 ```
 
-### Example Request
+### Example Requests
 
 **Create Sound Measurement:**
 
@@ -99,14 +194,44 @@ curl -X PUT http://localhost:8080/api/locations/1 \
   -H "Content-Type: application/json"
 ```
 
-## Frontend
+## Frontend Features
 
-A simple web UI is provided in the `frontend/` folder. It allows users to:
-- Add new locations
-- Select the current location (which is used as the default for new sound measurements)
-- View and manage locations via a dropdown menu
+The React frontend (`frontend-react/`) provides:
 
-To use the frontend, open `frontend/index.html` or `http://localhost:8080` in your browser. Ensure the backend server is running on `localhost:8080`.
+- **Location Management:** 
+  - Add new room locations
+  - Select current active location
+  - Delete unused locations
+  - Visual dropdown interface
+
+- **Real-time Updates:** Components automatically refresh after data changes
+
+- **Error Handling:** User-friendly error messages and loading states
+
+- **Responsive Design:** Works on desktop and mobile devices
+
+### Frontend Structure
+
+```
+frontend-react/
+├── src/
+│   ├── components/
+│   │   └── LocationManager.jsx   # Main location management component
+│   ├── services/
+│   │   └── api.js                 # API service layer (axios)
+│   ├── App.js                     # Root component
+│   ├── App.css                    # Styles
+│   └── index.js                   # Entry point
+├── public/
+│   └── index.html
+└── package.json
+```
+
+## Legacy Frontend
+
+The original HTML/JavaScript frontend is preserved in the `frontend/` directory for reference. It provides the same location management features using vanilla JavaScript.
+
+To use the legacy frontend, open `frontend/index.html` in a browser or access at `http://localhost:8080` while the backend is running.
 
 ## Validation Rules
 
@@ -122,7 +247,7 @@ To use the frontend, open `frontend/index.html` or `http://localhost:8080` in yo
 
 ### Change Authentication Credentials
 
-Edit `internal/api/middleware/basic_authentication.go`:
+Edit `backend/internal/api/middleware/basic_authentication.go`:
 
 ```go
 func validateUser(username, password string) bool {
@@ -130,11 +255,51 @@ func validateUser(username, password string) bool {
 }
 ```
 
+Also update in `frontend-react/src/services/api.js`:
+
+```javascript
+auth: {
+  username: 'YOUR_USERNAME',
+  password: 'YOUR_PASSWORD'
+}
+```
+
 ### Database Location
 
-Database file: `cmd/api/production.db`
+Database file: `backend/cmd/api/production.db`
 
 To reset database: Delete the file and restart the server (a new empty database will be created).
+
+## Testing
+
+### Backend Tests
+
+```bash
+# Run all tests
+cd backend
+go test ./...
+
+# Run with verbose output
+go test -v ./...
+
+# Run specific package tests
+go test -v ./internal/api/handlers/data
+```
+
+### Frontend Development
+
+```bash
+cd frontend-react
+
+# Start development server with hot-reload
+npm start
+
+# Run tests (if configured)
+npm test
+
+# Build for production
+npm run build
+```
 
 ## Development Notes
 
@@ -150,15 +315,63 @@ The system automatically provides defaults for:
 
 Server logs are written to:
 - Console output (stdout)
-- `cmd/api/production.log`
+- `backend/cmd/api/production.log`
+
+### CORS Configuration
+
+The backend allows cross-origin requests from the React development server. CORS headers are configured in `backend/internal/api/middleware/common.go`.
+
+### API Proxy
+
+During development, the React app (port 3000) proxies API requests to the Go backend (port 8080). This is configured in `frontend-react/package.json`:
+
+```json
+"proxy": "http://localhost:8080"
+```
+
+## Project Structure
+
+```
+API 0.1/
+├── backend/
+│   ├── cmd/api/              # Main application entry
+│   ├── internal/api/
+│   │   ├── handlers/         # HTTP handlers
+│   │   ├── middleware/       # Auth & CORS
+│   │   ├── repository/       # Data access layer
+│   │   ├── server/           # Server setup
+│   │   └── service/          # Business logic
+│   ├── go.mod
+│   └── go.sum
+├── frontend/                 # Legacy HTML/JS frontend
+├── frontend-react/           # React frontend
+│   ├── src/
+│   │   ├── components/
+│   │   ├── services/
+│   │   └── App.js
+│   └── package.json
+└── README.md
+```
+
+## Troubleshooting
+
+**CORS errors:**
+- Ensure backend is running on port 8080
+- Check CORS configuration in `backend/internal/api/middleware/common.go`
+- Verify proxy setting in `frontend-react/package.json`
+
+**API 415 errors:**
+- Check that Content-Type headers are set correctly in API requests
+- Verify interceptor configuration in `frontend-react/src/services/api.js`
 
 ## Future Enhancements
 
 - [ ] Daily summary endpoint for educators
 - [ ] Room-based filtering queries
+- [ ] Data visualization with charts
+- [ ] Real-time WebSocket updates
 - [ ] Environment variable configuration
 - [ ] JWT authentication
-- [ ] WebSocket support for real-time alerts
 
 ## License
 
@@ -166,4 +379,4 @@ Educational project for Intelligent Devices course.
 
 ---
 
-**Last Updated:** 02/11/2025
+**Last Updated:** 05/11/2025

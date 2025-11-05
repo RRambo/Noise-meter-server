@@ -29,11 +29,13 @@ func CommonMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		// For non-OPTIONS requests, validate Content-Type
-		if !strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
-			w.WriteHeader(http.StatusUnsupportedMediaType)
-			w.Write([]byte(`{"error": "Content-Type header should be set to: application/json."}`))
-			return
+		// Only check Content-Type for requests with body (POST, PUT, PATCH)
+		if r.Method == http.MethodPost || r.Method == http.MethodPut || r.Method == http.MethodPatch {
+			if !strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
+				w.WriteHeader(http.StatusUnsupportedMediaType)
+				w.Write([]byte(`{"error": "Content-Type header should be set to: application/json."}`))
+				return
+			}
 		}
 
 		// Continue to next handler
