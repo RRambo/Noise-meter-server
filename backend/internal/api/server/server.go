@@ -19,7 +19,6 @@ type Server struct {
 
 func NewServer(ctx context.Context, sf *service.ServiceFactory, logger *log.Logger) *Server {
 
-	// The API_URL in script.js needs to be changed to 'http://localhost:8080/api'
 	// Create a separate mux for API so we can apply authentication middleware
 	apiMux := http.NewServeMux()
 	if err := setupDataHandlers(apiMux, sf, logger); err != nil {
@@ -104,7 +103,19 @@ func setupDataHandlers(mux *http.ServeMux, sf *service.ServiceFactory, logger *l
 		}
 	})
 
-	return err
+	// Daily summary by room
+	mux.HandleFunc("/data/daily/{room}", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			data.GetDailySummaryHandler(w, r, logger, ds)
+		case http.MethodOptions:
+			data.OptionsHandler(w, r)
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	})
+
+	return nil
 
 }
 

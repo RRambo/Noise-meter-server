@@ -135,6 +135,7 @@ All endpoints require Basic Authentication:
 |--------|-------------------------|------------------------------------|
 | GET    | `/api/data`             | Get all sound measurements         |
 | GET    | `/api/data/{id}`        | Get specific measurement           |
+| GET    | `/api/data/daily/{room}`| Get data based on roomName and time|
 | POST   | `/api/data`             | Create new measurement             |
 | PUT    | `/api/data`             | Update existing measurement        |
 | DELETE | `/api/data/{id}`        | Delete measurement                 |
@@ -216,6 +217,7 @@ The React frontend (`frontend-react/`) provides:
 frontend-react/
 ├── src/
 │   ├── components/
+│   │   ├── Charts.jsx            # Component for creating the required charts (Work in progress)
 │   │   └── LocationManager.jsx   # Main location management component
 │   ├── services/
 │   │   └── api.js                 # API service layer (axios)

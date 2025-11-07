@@ -3,6 +3,7 @@ package data
 import (
 	"context"
 	"goapi/internal/api/repository/models"
+	"time"
 )
 
 // * Mock implementation of DataService for testing purposes, always returns a successful response and Data object(s) *
@@ -63,6 +64,10 @@ func (m *MockDataServiceSuccessful) ValidateData(data *models.Data) error {
 	return nil
 }
 
+func (m *MockDataServiceSuccessful) GetDailySummary(roomName string, date time.Time, ctx context.Context) ([]*models.Data, error) {
+	return nil, nil
+}
+
 // * Mock implementation of DataService for testing purposes, always returns empty data *
 
 type MockDataServiceNotFound struct{}
@@ -91,6 +96,10 @@ func (m *MockDataServiceNotFound) ValidateData(data *models.Data) error {
 	return nil
 }
 
+func (m *MockDataServiceNotFound) GetDailySummary(roomName string, date time.Time, ctx context.Context) ([]*models.Data, error) {
+	return nil, nil
+}
+
 // * Mock implementation of DataService for testing purposes, always returns an error *
 type MockDataServiceError struct{}
 
@@ -116,4 +125,8 @@ func (m *MockDataServiceError) Delete(data *models.Data, ctx context.Context) (i
 
 func (m *MockDataServiceError) ValidateData(data *models.Data) error {
 	return nil
+}
+
+func (m *MockDataServiceError) GetDailySummary(roomName string, date time.Time, ctx context.Context) ([]*models.Data, error) {
+	return nil, DataError{Message: "Error reading data."}
 }

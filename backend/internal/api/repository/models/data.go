@@ -3,7 +3,10 @@ package models
 // Though this file is named data, it contains only the sound data.
 // At this point I'll leave it like this. If we rename it it will require far more changes on other files.
 
-import "context"
+import (
+	"context"
+	"time"
+)
 
 type Data struct {
 	ID          int     `json:"id"`
@@ -24,6 +27,6 @@ type DataRepository interface {
 	ReadMany(page int, rowsPerPage int, ctx context.Context) ([]*Data, error)
 	Update(data *Data, ctx context.Context) (int64, error)
 	Delete(data *Data, ctx context.Context) (int64, error)
-	GetDailySummary(roomName string, ctx context.Context) ([]*Data, error) // To retreive daily summary statistics
-	GetByRoom(roomName string, ctx context.Context) ([]*Data, error)       // (For now only for future implementation.)To retrieve data for a specific room
+	GetDailySummary(roomName string, date time.Time, ctx context.Context) ([]*Data, error) // To retreive daily summary statistics
+	GetByRoom(roomName string, ctx context.Context) ([]*Data, error)                       // (For now only for future implementation.)To retrieve data for a specific room
 }

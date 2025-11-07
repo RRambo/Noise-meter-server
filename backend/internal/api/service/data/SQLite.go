@@ -2,6 +2,7 @@ package data
 
 import (
 	"context"
+	"time"
 	"goapi/internal/api/repository/models"
 )
 
@@ -99,4 +100,13 @@ func (ds *DataServiceSQLite) ValidateData(data *models.Data) error {
 	// Apparently there was bug here too, it didn't return error message when there was validation error.
 
 	return nil
+}
+
+func (ds *DataServiceSQLite) GetDailySummary(roomName string, date time.Time, ctx context.Context) ([]*models.Data, error) {
+	if roomName == "" {
+		return nil, DataError{Message: "Room name is required"}
+	}
+
+	// Get data for the specified room and date
+	return ds.repo.GetDailySummary(roomName, date, ctx)
 }

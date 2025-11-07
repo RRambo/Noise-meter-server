@@ -294,11 +294,29 @@ func (r *DataRepository) GetByRoom(roomName string, ctx context.Context) ([]*mod
 	return data, nil
 }
 
-func (r *DataRepository) GetDailySummary(roomName string, ctx context.Context) ([]*models.Data, error) {
+func (r *DataRepository) GetDailySummary(roomName string, date time.Time, ctx context.Context) ([]*models.Data, error) {
 	// Basic stub: returns all data for the room (replace with real daily summary logic as needed)
-	rows, err := r.sqlDB.QueryContext(ctx, `SELECT 
-	id, device_id, room_name, sound_level, threshold, measure_time, is_alert, description 
-	FROM data WHERE room_name = ?`, roomName)
+
+	// Calculate start and end of the day
+	year, month, day := date.Date()
+	location := date.Location()
+	startOfDay := time.Date(year, month, day, 0, 0, 0, 0, location)
+	endOfDay := startOfDay.Add(24 * time.Hour)
+
+	startOfDayStr := startOfDay.UTC().Format(time.RFC3339)
+	endOfDayStr := endOfDay.UTC().Format(time.RFC3339)
+
+	// Query to get data for the specified room and date range
+	query := `
+	SELECT id, device_id, room_name, sound_level, threshold, measure_time, is_alert, description 
+	FROM data
+	WHERE room_name = ?
+		AND measure_time >= ?
+		AND measure_time < ?
+	ORDER BY measure_time ASC
+	`
+	rows, err := r.sqlDB.QueryContext(ctx, query, roomName, startOfDayStr, endOfDayStr)
+
 	if err != nil {
 		return nil, err
 	}

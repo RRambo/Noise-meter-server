@@ -70,6 +70,10 @@ export const locationAPI = {
 export const dataAPI = {
   getAll: () => api.get('/data'),
   getById: (id) => api.get(`/data/${id}`),
+  getByRoom: (room) => api.get(`/data/${room}`),
+  getDailySummary: (room, date) => api.get(`/data/daily/${room}`, {
+    params: { date }
+  }),
   create: (data) => api.post('/data', data),
   update: (data) => api.put('/data', data),
   delete: (id) => api.delete(`/data/${id}`)

@@ -3,6 +3,7 @@ package data
 import (
 	"context"
 	"goapi/internal/api/repository/models"
+	"time"
 )
 
 type DataService interface {
@@ -12,6 +13,7 @@ type DataService interface {
 	Update(data *models.Data, ctx context.Context) (int64, error)
 	Delete(data *models.Data, ctx context.Context) (int64, error)
 	ValidateData(data *models.Data) error
+	GetDailySummary(roomName string, date time.Time, ctx context.Context) ([]*models.Data, error)
 }
 
 type DataError struct {
