@@ -18,8 +18,7 @@ type Server struct {
 }
 
 func NewServer(ctx context.Context, sf *service.ServiceFactory, logger *log.Logger) *Server {
-
-	// Create a separate mux for API so we can apply authentication middleware
+	// Create a separate mux for API to apply authentication middleware
 	apiMux := http.NewServeMux()
 	if err := setupDataHandlers(apiMux, sf, logger); err != nil {
 		logger.Fatalf("Error setting up data handlers: %v", err)
@@ -28,18 +27,14 @@ func NewServer(ctx context.Context, sf *service.ServiceFactory, logger *log.Logg
 		logger.Fatalf("Error setting up location handlers: %v", err)
 	}
 
-	// Main mux serves static files at root and mounts the API under /api/
+	// Main mux serves frontend static files and mounts API under /api/
 	mux := http.NewServeMux()
-
-	// Serve frontend static files from a hardcoded path relative to where we start
-	// the server from `backend\cmd\api` (this points to the repo-level `frontend`).
 	frontendDir := filepath.Join("..", "..", "..", "frontend")
 	absFrontendDir, _ := filepath.Abs(frontendDir)
 	logger.Println("Serving frontend from:", absFrontendDir)
-	fs := http.FileServer(http.Dir(absFrontendDir))
-	mux.Handle("/", fs)
+	mux.Handle("/", http.FileServer(http.Dir(absFrontendDir)))
 
-	// Wrap the apiMux with the authentication & common middlewares and mount under /api/
+	// Apply authentication & common middleware to API
 	middlewares := []middleware.Middleware{
 		middleware.BasicAuthenticationMiddleware,
 		middleware.CommonMiddleware,
@@ -65,15 +60,13 @@ func (api *Server) ListenAndServe(addr string) error {
 	return api.HTTPServer.ListenAndServe()
 }
 
-// * REST API handlers
+// Setup REST API handlers for /data
 func setupDataHandlers(mux *http.ServeMux, sf *service.ServiceFactory, logger *log.Logger) error {
-
 	ds, err := sf.CreateDataService(service.SQLiteDataService)
 	if err != nil {
 		return err
 	}
 
-	// List, create, update data
 	mux.HandleFunc("/data", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
@@ -89,7 +82,6 @@ func setupDataHandlers(mux *http.ServeMux, sf *service.ServiceFactory, logger *l
 		}
 	})
 
-	// Operations on single resource (id in path)
 	mux.HandleFunc("/data/{id}", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
@@ -103,7 +95,6 @@ func setupDataHandlers(mux *http.ServeMux, sf *service.ServiceFactory, logger *l
 		}
 	})
 
-	// Daily summary by room
 	mux.HandleFunc("/data/daily/{room}", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
@@ -116,9 +107,9 @@ func setupDataHandlers(mux *http.ServeMux, sf *service.ServiceFactory, logger *l
 	})
 
 	return nil
-
 }
 
+// Setup REST API handlers for /locations
 func setupLocationHandlers(mux *http.ServeMux, sf *service.ServiceFactory, logger *log.Logger) error {
 	ls, err := sf.CreateLocationService()
 	if err != nil {
@@ -132,7 +123,6 @@ func setupLocationHandlers(mux *http.ServeMux, sf *service.ServiceFactory, logge
 		case http.MethodPost:
 			locations.CreateLocationHandler(w, r, logger, ls)
 		case http.MethodOptions:
-			// Allow preflight
 			w.WriteHeader(http.StatusOK)
 		default:
 			w.WriteHeader(http.StatusMethodNotAllowed)
