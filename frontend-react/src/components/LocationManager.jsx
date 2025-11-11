@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { locationAPI } from '../services/api';
 
+// This component is not in use now, but I'll leave it here for a while, in case.
+
 function LocationManager() {
   // State management
   const [locations, setLocations] = useState([]);
