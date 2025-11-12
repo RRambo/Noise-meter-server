@@ -23,6 +23,9 @@ func PostHandler(w http.ResponseWriter, r *http.Request, logger *log.Logger, ds 
 	if data.MeasureTime == "" {
 		data.MeasureTime = time.Now().Format(time.RFC3339)
 	}
+	if data.DeviceID == "" {
+		data.DeviceID = "arduino_001"
+	}
 
 	logger.Println("Received POST /data from Arduino:")
 	logger.Printf("%+v\n", data)
