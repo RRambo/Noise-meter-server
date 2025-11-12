@@ -16,12 +16,15 @@ This repository contains:
 - Alert flagging when threshold exceeded
 - **Location management:** Add, select, and manage room locations via `/api/locations` endpoint
 - **React Frontend:** Component-based UI with real-time updates
+- **Data visualization:** Interactive charts showing daily and weekly noise patterns
+- **Real-time monitoring:** Live noise meter with circular progress indicator
+- **Statistics dashboard:** Daily peak, weekly average, and monitoring status cards
 
 ## Technology Stack
 
 - **Backend Language:** Go 1.x
 - **Database:** SQLite
-- **Frontend:** React 18, Axios, Bootstrap 5
+- **Frontend:** React 18, Axios, Bootstrap 5, Recharts
 - **Architecture:** Handler-Service-Repository pattern (backend), Component-based (frontend)
 - **Testing:** Go testing framework
 - **Authentication:** HTTP Basic Auth
@@ -118,7 +121,7 @@ For deployment, build React app and serve from Go server:
 
 Access at **http://localhost:8080**
 
-Note that this is specifically for production and deployment, when develeoping, we are constantly updating the files within `frontend-react` and so couldn't keeping running `npm run build`.
+Note that this is specifically for production and deployment. When developing, we are constantly updating the files within `frontend-react` and so couldn't keep running `npm run build`.
 That's why we are using access at **http://localhost:3000** in development now.
 
 ## API Endpoints
@@ -197,19 +200,45 @@ curl -X PUT http://localhost:8080/api/locations/1 \
 
 ## Frontend Features
 
-The React frontend (`frontend-react/`) provides:
+The React frontend (`frontend-react/`) provides a comprehensive dashboard for monitoring and analyzing classroom noise levels:
 
-- **Location Management:** 
-  - Add new room locations
-  - Select current active location
-  - Delete unused locations
-  - Visual dropdown interface
+### Main Dashboard Components
 
-- **Real-time Updates:** Components automatically refresh after data changes
+1. **Settings Panel**
+   - Location dropdown selector (choose active monitoring room)
+   - Adjustable noise threshold slider (saved to localStorage)
+   - Visual feedback for current settings
 
+2. **Real-time Noise Meter**
+   - Circular progress indicator showing current noise level
+   - Color-coded status (Quiet/Moderate/Loud)
+   - Dynamic updates every 3 seconds
+   - Room name display
+
+3. **Statistics Cards**
+   - **Daily Peak:** Highest noise level recorded today
+   - **Weekly Average:** Average noise level for the current week
+   - **Monitoring Status:** Current active room and system status
+
+4. **Noise Analysis Charts**
+   - **Daily Analysis:** Area chart showing hourly noise patterns (8:00-17:00)
+     - Average and peak noise levels
+     - Date selector for historical data
+     - Day-of-week selector
+   - **Weekly Analysis:** Bar chart comparing noise levels across 5 weekdays
+     - Week navigation (up to 4 weeks back)
+     - Comparative view of average and peak levels
+   - **Independent room selector:** View analytics for any room without changing the active monitoring location
+
+### Technical Features
+
+- **Real-time Updates:** Components automatically refresh with new data
+- **Data Persistence:** 
+  - LocalStorage for threshold settings
+  - SessionStorage for daily peak tracking
 - **Error Handling:** User-friendly error messages and loading states
-
 - **Responsive Design:** Works on desktop and mobile devices
+- **Interactive Charts:** Built with Recharts library for smooth animations
 
 ### Frontend Structure
 
@@ -217,13 +246,16 @@ The React frontend (`frontend-react/`) provides:
 frontend-react/
 ├── src/
 │   ├── components/
-│   │   ├── Charts.jsx            # Component for creating the required charts (Work in progress)
-│   │   └── LocationManager.jsx   # Main location management component
+│   │   ├── LocationManager.jsx    # Location CRUD operations (Not in use now)
+│   │   ├── SettingsPanel.jsx      # Threshold and location controls
+│   │   ├── NoiseMeter.jsx          # Circular noise level display
+│   │   ├── StatsCards.jsx          # Statistics dashboard cards
+│   │   └── NoiseAnalytics.jsx      # Chart visualization component
 │   ├── services/
-│   │   └── api.js                 # API service layer (axios)
-│   ├── App.js                     # Root component
-│   ├── App.css                    # Styles
-│   └── index.js                   # Entry point
+│   │   └── api.js                  # API service layer (axios)
+│   ├── App.js                      # Root component with state management
+│   ├── App.css                     # Global styles and component styling
+│   └── index.js                    # Entry point
 ├── public/
 │   └── index.html
 └── package.json
@@ -231,7 +263,7 @@ frontend-react/
 
 ## Legacy Frontend
 
-The original HTML/JavaScript frontend is preserved in the `frontend/` directory for reference. It provides the same location management features using vanilla JavaScript.
+The original HTML/JavaScript frontend is preserved in the `frontend/` directory for reference. It provides basic location management features using vanilla JavaScript.
 
 To use the legacy frontend, open `frontend/index.html` in a browser or access at `http://localhost:8080` while the backend is running.
 
@@ -331,6 +363,14 @@ During development, the React app (port 3000) proxies API requests to the Go bac
 "proxy": "http://localhost:8080"
 ```
 
+### Current Data Source
+
+**Note:** The frontend currently uses **simulated data** for demonstration purposes. The real-time noise meter generates random values, and the charts display sample patterns. To connect real Arduino sensor data:
+
+1. Modify the noise simulation logic in `App.js`
+2. Replace simulated values with actual sensor readings from the backend API
+3. Implement WebSocket connection for true real-time updates (future enhancement)
+
 ## Project Structure
 
 ```
@@ -346,11 +386,11 @@ API 0.1/
 │   ├── go.mod
 │   └── go.sum
 ├── frontend/                 # Legacy HTML/JS frontend
-├── frontend-react/           # React frontend
+├── frontend-react/           # React frontend (primary UI)
 │   ├── src/
-│   │   ├── components/
-│   │   ├── services/
-│   │   └── App.js
+│   │   ├── components/       # React components
+│   │   ├── services/         # API client
+│   │   └── App.js            # Main application
 │   └── package.json
 └── README.md
 ```
@@ -366,14 +406,25 @@ API 0.1/
 - Check that Content-Type headers are set correctly in API requests
 - Verify interceptor configuration in `frontend-react/src/services/api.js`
 
+**Charts not displaying:**
+- Ensure recharts is installed: `npm install recharts`
+- Check browser console for React errors
+- Verify data format matches chart component expectations
+
+**localStorage/sessionStorage issues:**
+- Clear browser storage: Run in console: `sessionStorage.clear(); localStorage.clear();`
+- Check browser privacy settings allow storage
+
 ## Future Enhancements
 
-- [ ] Daily summary endpoint for educators
-- [ ] Room-based filtering queries
-- [ ] Data visualization with charts
-- [ ] Real-time WebSocket updates
+- [ ] WebSocket integration for real-time data streaming
+- [ ] Historical data export (CSV/PDF)
+- [ ] Alert notifications when threshold exceeded
+- [ ] Multi-room comparison view
+- [ ] Teacher activity correlation analysis
+- [ ] JWT authentication replacement
 - [ ] Environment variable configuration
-- [ ] JWT authentication
+- [ ] Unit tests for React components
 
 ## License
 
@@ -381,4 +432,4 @@ Educational project for Intelligent Devices course.
 
 ---
 
-**Last Updated:** 05/11/2025
+**Last Updated:** 12/11/2025
