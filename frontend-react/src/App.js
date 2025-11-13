@@ -5,7 +5,7 @@ import NoiseMeter from './components/NoiseMeter';
 import StatsCards from './components/StatsCards';
 import NoiseAnalytics from './components/NoiseAnalytics';
 import 'bootstrap/dist/css/bootstrap.min.css';
-import './App.css';
+import './styles/App.css';
 
 function App() {
 
