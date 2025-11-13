@@ -25,7 +25,7 @@ function LocationManager() {
       const response = await locationAPI.getAll();
       const locationData = response.data.locations || [];
       setLocations(locationData);
-      
+
       // Find the chosen location
       const chosen = locationData.find(loc => loc.chosen);
       setChosenLocation(chosen);
@@ -67,7 +67,7 @@ function LocationManager() {
   // Delete a location
   const handleDeleteLocation = async (id, name, e) => {
     e.stopPropagation();
-    
+
     if (!window.confirm(`Are you sure you want to delete location (${name})?`)) {
       return;
     }
@@ -94,7 +94,7 @@ function LocationManager() {
   return (
     <div className="location-manager">
       <h1>Kindergarten Noise Meter</h1>
-      
+
       {/* Add location form */}
       <div className="mb-3">
         <form onSubmit={handleAddLocation}>
@@ -122,7 +122,7 @@ function LocationManager() {
         >
           {chosenLocation ? `${chosenLocation.name} ▾` : 'Select location ▾'}
         </button>
-        
+
         {isDropdownOpen && (
           <ul
             className="list-group position-absolute w-100"
@@ -148,6 +148,22 @@ function LocationManager() {
           </ul>
         )}
       </div>
+
+      {/*<select
+        className="form-select"
+        value={chosenLocation?.id || ''}
+        onChange={(e) => onLocationChange(parseInt(e.target.value))}
+      >
+        {locations.length === 0 ? (
+          <option value="">No locations available</option>
+        ) : (
+          locations.map(location => (
+            <option key={location.id} value={location.id}>
+              {location.name}
+            </option>
+          ))
+        )}
+      </select>*/}
     </div>
   );
 }
