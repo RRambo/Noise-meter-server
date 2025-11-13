@@ -205,7 +205,8 @@ The React frontend (`frontend-react/`) provides a comprehensive dashboard for mo
 ### Main Dashboard Components
 
 1. **Settings Panel**
-   - Location dropdown selector (choose active monitoring room)
+   - Input field for adding locations
+   - Location dropdown selector (choose active monitoring room and delete locations)
    - Adjustable noise threshold slider (saved to localStorage)
    - Visual feedback for current settings
 
