@@ -12,7 +12,8 @@ function SettingsPanel({
   isDropdownOpen,
   setIsDropdownOpen,
   threshold,
-  onThresholdChange
+  onThresholdChange,
+  onThresholdUpdate
 }) {
   const dropdownRef = useRef(null);
   // Close dropdown when clicking outside of it
@@ -127,6 +128,7 @@ function SettingsPanel({
             step="5"
             value={threshold}
             onChange={(e) => onThresholdChange(parseInt(e.target.value))}
+            onMouseUp={(e) => onThresholdUpdate(parseInt(e.target.value))}
           />
 
           <p className="text-muted small mt-2 mb-0">
