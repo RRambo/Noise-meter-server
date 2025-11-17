@@ -18,6 +18,7 @@ This repository contains:
 - **React Frontend:** Component-based UI with real-time updates
 - **Data visualization:** Interactive charts showing daily and weekly noise patterns
 - **Real-time monitoring:** Live noise meter with circular progress indicator
+- **Threshold slider** A slider that can be used to adjust the threshold
 - **Statistics dashboard:** Daily peak, weekly average, and monitoring status cards
 
 ## Technology Stack
@@ -187,7 +188,7 @@ curl -X POST http://localhost:8080/api/data \
 curl -X POST http://localhost:8080/api/locations \
   -u kids_noisemeter_admin:passwordkids \
   -H "Content-Type: application/json" \
-  -d '{ "name": "PlayRoom_A", "chosen": true }'
+  -d '{ "name": "PlayRoom_A", "chosen": true, "threshold": 70.0 }'
 ```
 
 **Set Chosen Location:**
@@ -207,7 +208,7 @@ The React frontend (`frontend-react/`) provides a comprehensive dashboard for mo
 1. **Settings Panel**
    - Input field for adding locations
    - Location dropdown selector (choose active monitoring room and delete locations)
-   - Adjustable noise threshold slider (saved to localStorage)
+   - Adjustable noise threshold slider (saved to localStorage and chosen location)
    - Visual feedback for current settings
 
 2. **Real-time Noise Meter**
