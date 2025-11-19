@@ -2,9 +2,9 @@
 #include <ArduinoHttpClient.h>
 
 // ===== Wi-Fi & Server =====
-const char* ssid = "Darshan 1";   // Used wifi username      
-const char* password = "Badal402";     // Used wifi password
-char server[] = "192.168.1.105";   // Server IP Address    
+const char* ssid = "_";   // Used wifi username      
+const char* password = "_";     // Used wifi password
+char server[] = "_._._._";   // Server IP Address    
 int port = 8080;
 
 // ===== Device & Room Info =====
@@ -165,3 +165,4 @@ String base64Encode(String input) {
   while (encoded.length() % 4) encoded += '=';
   return encoded;
 }
+
