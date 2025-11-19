@@ -4,120 +4,83 @@ This system supports an IoT device (Arduino with sound sensor) that measures noi
 
 This repository contains:
 - A RESTful API backend for monitoring sound levels in kindergarten rooms, built with Go and SQLite.
-- A React-based frontend user interface for managing locations, configuring the noise meter, and viewing results and summaries.
+- A React-based frontend user interface for managing locations, configuring the noise meter, viewing results, summaries, and alert notifications.
 
 ## Features
 
-- RESTful API with full CRUD operations for sound data
-- SQLite database for data persistence
-- Basic authentication
-- Sound level validation (0-150 dB range)
-- Automatic timestamping
-- Alert flagging when threshold exceeded
-- **Location management:** Add, select, and manage room locations via `/api/locations` endpoint
-- **React Frontend:** Component-based UI with real-time updates
-- **Data visualization:** Interactive charts showing daily and weekly noise patterns
-- **Real-time monitoring:** Live noise meter with circular progress indicator
-- **Statistics dashboard:** Daily peak, weekly average, and monitoring status cards
+### Backend
+- RESTful API with CRUD operations for sound data and locations
+- SQLite database with automatic schema creation
+- Basic HTTP authentication
+- Sound level validation (0-150 dB)
+- CORS enabled for React development
+
+### Frontend
+- **Real-time Monitoring**: Circular meter with color-coded status (Quiet/Moderate/Loud)
+- **Alert System**: Toast notifications + alert history with 3-minute cooldown
+- **Statistics Dashboard**: Daily peak, weekly average, current monitoring status
+- **Analytics Charts**: Daily/weekly noise patterns with independent room selection
+- **Location Management**: Add/delete rooms, set active monitoring location
+- **Settings**: Adjustable threshold with localStorage persistence
 
 ## Technology Stack
 
-- **Backend Language:** Go 1.x
-- **Database:** SQLite
-- **Frontend:** React 18, Axios, Bootstrap 5, Recharts
-- **Architecture:** Handler-Service-Repository pattern (backend), Component-based (frontend)
-- **Testing:** Go testing framework
-- **Authentication:** HTTP Basic Auth
+- **Backend**: Go 1.19+, SQLite, Handler-Service-Repository pattern
+- **Frontend**: React 18, Axios, Bootstrap 5, Recharts
+- **Auth**: HTTP Basic Auth
 
 ## Installation & Setup
 
 ### Prerequisites
 
-- Go 1.19 or higher
+- Go 1.19 with CGO enabled
 - Node.js 16+ and npm
 - GCC compiler (MinGW or MSYS2 for Windows)
 
-### Backend Setup
+### Installation
 
-1. **Navigate to backend directory**
-   ```bash
-   cd backend
-   ```
+```bash
+# Backend
+cd backend
+go mod download
+go env -w CGO_ENABLED=1  # if needed
 
-2. **Install Go dependencies**
-   ```bash
-   go mod download
-   ```
-
-3. **Enable CGO (if needed)**
-   ```bash
-   go env -w CGO_ENABLED=1
-   ```
-
-### Frontend Setup
-
-1. **Navigate to React frontend directory**
-   ```bash
-   cd frontend-react
-   ```
-
-2. **Install npm dependencies**
-   ```bash
-   npm install
-   ```
+# Frontend
+cd frontend-react
+npm install
+```
 
 ## Running the Application
 
-### Development Mode (Recommended)
+### Development Mode
 
 Run backend and frontend separately with hot-reload enabled.
 
-#### 1. Start Backend Server
-
+**Terminal 1 - Backend:**
 ```bash
 cd backend/cmd/api
 go run main.go
+# Server runs on http://localhost:8080
 ```
 
-Backend runs on **http://localhost:8080**
-
-Server will output:
-```
-Starting server on :8080...
-```
-
-#### 2. Start React Development Server
-
-In a new terminal:
-
+**Terminal 2 - Frontend:**
 ```bash
 cd frontend-react
 npm start
+# App opens at http://localhost:3000
+# API requests auto-proxy to port 8080
 ```
-
-Frontend runs on **http://localhost:3000**
-
-Browser will automatically open to http://localhost:3000
-
-**The React app automatically proxies API requests to the backend on port 8080.**
 
 ### Production Mode
 
 For deployment, build React app and serve from Go server:
 
-1. **Build React app:**
-   ```bash
-   cd frontend-react
-   npm run build
-   ```
-
-2. **Configure Go server to serve React build** (see deployment documentation)
-
-3. **Run Go server:**
-   ```bash
-   cd backend/cmd/api
-   go run main.go
-   ```
+```bash
+cd frontend-react
+npm run build
+cd ../../backend/cmd/api
+go run main.go
+```
 
 Access at **http://localhost:8080**
 
@@ -200,98 +163,72 @@ curl -X PUT http://localhost:8080/api/locations/1 \
 
 ## Frontend Features
 
-The React frontend (`frontend-react/`) provides a comprehensive dashboard for monitoring and analyzing classroom noise levels:
+### Main Components
+- **SettingsPanel**: Location selector, threshold slider
+- **NoiseMeter**: Circular progress indicator with real-time updates, also has line indicator to see the set threshold level
+- **StatsCards**: Daily peak, weekly average, monitoring status
+- **NoiseAnalytics**: Interactive charts (daily/weekly analysis)
+- **AlertToast**: Pop-up notifications (auto-dismiss after 5s)
+- **AlertHistory**: List of today's alerts with count badge
 
-### Main Dashboard Components
+### Data Persistence
+- **localStorage**: Threshold settings, last alert date
+- **sessionStorage**: Daily peak, alert history (clears at midnight)
 
-1. **Settings Panel**
-   - Input field for adding locations
-   - Location dropdown selector (choose active monitoring room and delete locations)
-   - Adjustable noise threshold slider (saved to localStorage)
-   - Visual feedback for current settings
+## Alert System Details
 
-2. **Real-time Noise Meter**
-   - Circular progress indicator showing current noise level
-   - Color-coded status (Quiet/Moderate/Loud)
-   - Dynamic updates every 3 seconds
-   - Room name display
+### Trigger Conditions
+- Noise level exceeds threshold
+- 3-minute cooldown between alerts (prevents spam)
 
-3. **Statistics Cards**
-   - **Daily Peak:** Highest noise level recorded today
-   - **Weekly Average:** Average noise level for the current week
-   - **Monitoring Status:** Current active room and system status
+### Notification Features
+- Toast appears in top-right corner
+- Displays: room name, noise level, timestamp
+- Audio alert (custom MP3 or browser beep fallback)
+- History persists until midnight (auto-clears daily)
 
-4. **Noise Analysis Charts**
-   - **Daily Analysis:** Area chart showing hourly noise patterns (8:00-17:00)
-     - Average and peak noise levels
-     - Date selector for historical data
-     - Day-of-week selector
-   - **Weekly Analysis:** Bar chart comparing noise levels across 5 weekdays
-     - Week navigation (up to 4 weeks back)
-     - Comparative view of average and peak levels
-   - **Independent room selector:** View analytics for any room without changing the active monitoring location
-
-### Technical Features
-
-- **Real-time Updates:** Components automatically refresh with new data
-- **Data Persistence:** 
-  - LocalStorage for threshold settings
-  - SessionStorage for daily peak tracking
-- **Error Handling:** User-friendly error messages and loading states
-- **Responsive Design:** Works on desktop and mobile devices
-- **Interactive Charts:** Built with Recharts library for smooth animations
+### Audio Setup (Optional)
+Place custom sound file at: `frontend-react/public/sounds/alert.mp3`
+Falls back to Web Audio API beep if file missing.
 
 ### Frontend Structure
 
 ```
-frontend-react/
-├── src/
-│   ├── components/
-│   │   ├── LocationManager.jsx    # Location CRUD operations (Not in use now)
-│   │   ├── SettingsPanel.jsx      # Threshold and location controls
-│   │   ├── NoiseMeter.jsx          # Circular noise level display
-│   │   ├── StatsCards.jsx          # Statistics dashboard cards
-│   │   └── NoiseAnalytics.jsx      # Chart visualization component
-│   ├── services/
-│   │   └── api.js                  # API service layer (axios)
-│   ├── App.js                      # Root component with state management
-│   ├── App.css                     # Global styles and component styling
-│   └── index.js                    # Entry point
-├── public/
-│   └── index.html
-└── package.json
+frontend-react/src/
+├── components/
+│   ├── SettingsPanel.jsx
+│   ├── NoiseMeter.jsx
+│   ├── StatsCards.jsx
+│   ├── NoiseAnalytics.jsx
+│   ├── AlertToast.jsx
+│   └── AlertHistory.jsx
+├── services/
+│   └── api.js              # Axios client with auth
+├── utils/
+│   └── audioUtils.js       # Alert sound playback
+├── styles/                 # Component-specific CSS
+└── App.js                  # Root component
 ```
 
-## Legacy Frontend
-
-The original HTML/JavaScript frontend is preserved in the `frontend/` directory for reference. It provides basic location management features using vanilla JavaScript.
-
-To use the legacy frontend, open `frontend/index.html` in a browser or access at `http://localhost:8080` while the backend is running.
-
-## Validation Rules
+## Data Validation Rules and Default Values
 
 - **device_id:** Defaults to "arduino_001" if not provided
 - **room_name:** Required (auto-filled with current chosen location if omitted)
-- **sound_level:** Required, 0-150 dB
-- **threshold:** Required, 0-150 dB
-- **measure_time:** Auto-generated if not provided
-- **is_alert:** Boolean flag
+- **sound_level:** Required, range 0-150 dB
+- **threshold:** Required, default 70 db, range 0-150 dB
+- **measure_time:** Auro current timestamp if not provided
 - **description:** Optional text
 
-## Configuration
+## Authentication Configuration
 
-### Change Authentication Credentials
-
-Edit `backend/internal/api/middleware/basic_authentication.go`:
-
+**Backend** (`backend/internal/api/middleware/basic_authentication.go`):
 ```go
 func validateUser(username, password string) bool {
     return username == "YOUR_USERNAME" && password == "YOUR_PASSWORD"
 }
 ```
 
-Also update in `frontend-react/src/services/api.js`:
-
+**Frontend** (`frontend-react/src/services/api.js`):
 ```javascript
 auth: {
   username: 'YOUR_USERNAME',
@@ -300,68 +237,48 @@ auth: {
 ```
 
 ### Database Location
-
-Database file: `backend/cmd/api/production.db`
-
-To reset database: Delete the file and restart the server (a new empty database will be created).
+- File: `backend/cmd/api/production.db`
+- Reset: Delete file and restart server (auto-recreates empty DB)
 
 ## Testing
 
 ### Backend Tests
 
 ```bash
-# Run all tests
+# Backend tests
 cd backend
 go test ./...
-
-# Run with verbose output
-go test -v ./...
-
-# Run specific package tests
 go test -v ./internal/api/handlers/data
-```
 
-### Frontend Development
-
-```bash
+# Frontend development
 cd frontend-react
-
-# Start development server with hot-reload
-npm start
-
-# Run tests (if configured)
-npm test
-
-# Build for production
-npm run build
+npm start        # Dev server with hot-reload
+npm test         # Run tests
+npm run build    # Production build
 ```
 
-## Development Notes
+## Troubleshooting
 
-### Default Values
+Server logs are written to `Console output (stdout)` and `backend/cmd/api/production.log`
 
-The system automatically provides defaults for:
-- `device_id`: "arduino_001"
-- `threshold`: 70.0 dB
-- `measure_time`: Current timestamp
-- `room_name`: Current chosen location (if not provided)
+**CORS Errors**
+- Ensure backend is on port 8080
+- Check `backend/internal/api/middleware/common.go`
+- Verify proxy in `frontend-react/package.json`
 
-### Logging
+**Storage Issues**
+- Clear browser storage: `sessionStorage.clear(); localStorage.clear();`
+- Check browser privacy settings
 
-Server logs are written to:
-- Console output (stdout)
-- `backend/cmd/api/production.log`
+**Charts Not Displaying**
+- Verify: `npm install recharts`
+- Check browser console for errors
 
-### CORS Configuration
-
-The backend allows cross-origin requests from the React development server. CORS headers are configured in `backend/internal/api/middleware/common.go`.
-
-### API Proxy
-
-During development, the React app (port 3000) proxies API requests to the Go backend (port 8080). This is configured in `frontend-react/package.json`:
-
-```json
-"proxy": "http://localhost:8080"
+**Port 8080 Already in Use**
+```bash
+# Windows
+netstat -ano | findstr :8080
+taskkill /PID  /F
 ```
 
 ### Current Data Source
@@ -386,35 +303,9 @@ API 0.1/
 │   │   └── service/          # Business logic
 │   ├── go.mod
 │   └── go.sum
-├── frontend/                 # Legacy HTML/JS frontend
-├── frontend-react/           # React frontend (primary UI)
-│   ├── src/
-│   │   ├── components/       # React components
-│   │   ├── services/         # API client
-│   │   └── App.js            # Main application
-│   └── package.json
+├── frontend-react/           # React frontend
 └── README.md
 ```
-
-## Troubleshooting
-
-**CORS errors:**
-- Ensure backend is running on port 8080
-- Check CORS configuration in `backend/internal/api/middleware/common.go`
-- Verify proxy setting in `frontend-react/package.json`
-
-**API 415 errors:**
-- Check that Content-Type headers are set correctly in API requests
-- Verify interceptor configuration in `frontend-react/src/services/api.js`
-
-**Charts not displaying:**
-- Ensure recharts is installed: `npm install recharts`
-- Check browser console for React errors
-- Verify data format matches chart component expectations
-
-**localStorage/sessionStorage issues:**
-- Clear browser storage: Run in console: `sessionStorage.clear(); localStorage.clear();`
-- Check browser privacy settings allow storage
 
 ## Future Enhancements
 

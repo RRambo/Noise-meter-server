@@ -4,6 +4,9 @@ import SettingsPanel from './components/SettingsPanel';
 import NoiseMeter from './components/NoiseMeter';
 import StatsCards from './components/StatsCards';
 import NoiseAnalytics from './components/NoiseAnalytics';
+import AlertToast from './components/AlertToast';
+import AlertHistory from './components/AlertHistory';
+import { playAlertSound } from './utils/audioUtils';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './styles/App.css';
 
@@ -33,6 +36,22 @@ function App() {
   });
   const [weeklyAverage, setWeeklyAverage] = useState(63);
 
+  // Alert state
+  const [currentAlert, setCurrentAlert] = useState(null);
+  const [alertHistory, setAlertHistory] = useState(() => {
+    const saved = sessionStorage.getItem('alertHistory');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (error) {
+        console.error('Error parsing alert history:', error);
+        return [];
+      }
+    }
+    return [];
+  });
+  const [lastAlertTime, setLastAlertTime] = useState(null);
+
   // Save dailyPeak to sessionStorage 
   useEffect(() => {
     sessionStorage.setItem('dailyPeak', dailyPeak);
@@ -46,10 +65,34 @@ function App() {
 
       // Update daily peak
       setDailyPeak(prev => Math.max(prev, randomLevel));
+
+      if (randomLevel > threshold) {
+        const now = Date.now();
+        if (!lastAlertTime || (now - lastAlertTime) >= 180000) {
+          const timeString = new Date().toLocaleTimeString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
+          });
+
+          const alert = {
+            roomName: chosenLocation?.name || 'Unknown Room',
+            noiseLevel: randomLevel,
+            threshold: threshold,
+            time: timeString,
+            timestamp: now
+          };
+
+          setCurrentAlert(alert);
+          playAlertSound();
+          setAlertHistory(prev => [alert, ...prev]);
+          setLastAlertTime(now);
+        }
+      }
     }, 3000); // Updtate every 3 seconds
 
     return () => clearInterval(interval);
-  }, []);
+  }, [threshold, lastAlertTime, chosenLocation]);
 
   // Simulate noise level updates every few seconds (for testing)
   useEffect(() => {
@@ -79,6 +122,30 @@ function App() {
   useEffect(() => {
     localStorage.setItem('noiseThreshold', threshold);
   }, [threshold]);
+
+  // Save alert history to sessionStorage
+  useEffect(() => {
+    sessionStorage.setItem('alertHistory', JSON.stringify(alertHistory));
+  }, [alertHistory]);
+
+  // Clear alert history at midnight
+  useEffect(() => {
+    const checkMidnight = () => {
+      const now = new Date();
+      const savedDate = localStorage.getItem('lastAlertDate');
+      const today = now.toDateString();
+
+      if (savedDate !== today) {
+        setAlertHistory([]);
+        sessionStorage.removeItem('alertHistory');
+        localStorage.setItem('lastAlertDate', today);
+      }
+    };
+
+    checkMidnight();
+    const interval = setInterval(checkMidnight, 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   const loadLocations = async () => {
     try {
@@ -172,6 +239,13 @@ function App() {
     setThreshold(newThreshold);
   };
 
+
+
+  // Close toast
+  const handleCloseToast = () => {
+    setCurrentAlert(null);
+  };
+
   if (loading) {
     return (
       <div className="min-vh-100 d-flex align-items-center justify-content-center">
@@ -184,6 +258,8 @@ function App() {
 
   return (
     <div className="app-container">
+      {/*Alert*/}
+      <AlertToast alert={currentAlert} onClose={handleCloseToast} />
       {/* Header */}
       <header className="app-header text-center mb-4">
         <h1 className="app-title">Kindergarten Noise Meter</h1>
@@ -210,6 +286,8 @@ function App() {
               threshold={threshold}
               onThresholdChange={handleThresholdChange}
             />
+            {/* Alert History */}
+            <AlertHistory alerts={alertHistory} />
           </div>
 
           {/* Right Column - Noise Meter */}
@@ -240,6 +318,7 @@ function App() {
     </div>
 
   );
+
 }
 
 export default App;
