@@ -132,7 +132,7 @@ func setupLocationHandlers(mux *http.ServeMux, sf *service.ServiceFactory, logge
 	mux.HandleFunc("/locations/{id}", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodPut:
-			locations.SetChosenLocationHandler(w, r, logger, ls)
+			locations.UpdateLocationHandler(w, r, logger, ls)
 		case http.MethodOptions:
 			w.WriteHeader(http.StatusOK)
 		case http.MethodDelete:

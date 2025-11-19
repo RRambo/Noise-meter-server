@@ -148,6 +148,7 @@ function App() {
   }, []);
 
   const loadLocations = async () => {
+    let newLocation
     try {
       setLoading(true);
       const response = await locationAPI.getAll();
@@ -156,11 +157,21 @@ function App() {
 
       // Find the chosen location
       const chosen = locationData.find(loc => loc.chosen);
+      newLocation = chosen
       setChosenLocation(chosen);
     } catch (error) {
       console.error('Error loading locations:', error);
     } finally {
       setLoading(false);
+    }
+    if (newLocationName != '' || !chosenLocation) {
+      try {
+        await locationAPI.updateThreshold(newLocation.id, parseFloat(threshold));
+      } catch (error) {
+        console.error('Error updating threshold', error);
+      }
+    } else {
+      handleThresholdChange(newLocation.threshold)
     }
   };
 
@@ -233,11 +244,20 @@ function App() {
       console.error('Error deleting location:', err);
       alert('Failed to delete location.');
     }
+    handleThresholdUpdate(threshold)
   };
 
-  const handleThresholdChange = (newThreshold) => {
+  const handleThresholdChange = async (newThreshold) => {
     setThreshold(newThreshold);
   };
+
+  const handleThresholdUpdate = async (newThreshold) => {
+    try {
+      await locationAPI.updateThreshold(chosenLocation.id, parseFloat(newThreshold));
+    } catch (error) {
+      console.error('Error updating threshold', error);
+    }
+  }
 
 
 
@@ -285,6 +305,7 @@ function App() {
               setIsDropdownOpen={setIsDropdownOpen}
               threshold={threshold}
               onThresholdChange={handleThresholdChange}
+              onThresholdUpdate={handleThresholdUpdate}
             />
             {/* Alert History */}
             <AlertHistory alerts={alertHistory} />

@@ -61,6 +61,11 @@ export const locationAPI = {
     }
   }),
   // Had to set headers manually here to satisfy backend middleware
+
+  // Update threshold of location
+  updateThreshold: (id, newThreshold) => api.put(`/locations/${id}`, null, {
+    params: { newThreshold }
+  }),
   
   // Delete a location
   delete: (id) => api.delete(`/locations/${id}`)

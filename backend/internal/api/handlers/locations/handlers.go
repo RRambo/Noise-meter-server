@@ -14,6 +14,7 @@ type LocationService interface {
 	CreateLocation(location *models.Location) error
 	GetAllLocations() ([]*models.Location, error)
 	SetChosenLocation(id int) error
+	UpdateThreshold(id int, newThreshold float64) error
 	DeleteLocation(location *models.Location, ctx context.Context) (int64, error)
 }
 
@@ -49,6 +50,45 @@ func CreateLocationHandler(w http.ResponseWriter, r *http.Request, logger *log.L
 	json.NewEncoder(w).Encode(location)
 }
 
+// UpdateThresholdHandler and SetChosenLocationHandler combined
+func UpdateLocationHandler(w http.ResponseWriter, r *http.Request, logger *log.Logger, svc LocationService) {
+	idStr := r.PathValue("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, `{"error": "Invalid location ID"}`, http.StatusBadRequest)
+		return
+	}
+
+	// Get threshold from query parameter
+	thresholdStr := r.URL.Query().Get("newThreshold")
+	if thresholdStr != "" {
+		// Parse the threshold
+		threshold, err := strconv.ParseFloat(thresholdStr, 64)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(`{"error": "Invalid threshold format"}`))
+			return
+		}
+
+		// Update threshold
+		if err := svc.UpdateThreshold(id, threshold); err != nil {
+			logger.Println("Error updating threshold: ", err)
+			http.Error(w, `{"error": "Failed to update threshold"}`, http.StatusInternalServerError)
+			return
+		}
+	} else {
+		// Update chosen location
+		if err := svc.SetChosenLocation(id); err != nil {
+			logger.Println("Error setting chosen location:", err)
+			http.Error(w, `{"error": "Failed to set chosen location"}`, http.StatusInternalServerError)
+			return
+		}
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(`{"message": "Location updated"}`))
+}
+
 func SetChosenLocationHandler(w http.ResponseWriter, r *http.Request, logger *log.Logger, svc LocationService) {
 	idStr := r.PathValue("id")
 	id, err := strconv.Atoi(idStr)
@@ -66,6 +106,7 @@ func SetChosenLocationHandler(w http.ResponseWriter, r *http.Request, logger *lo
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(`{"message": "Chosen location updated"}`))
 }
+
 func DeleteHandler(w http.ResponseWriter, r *http.Request, logger *log.Logger, svc LocationService) {
 	idStr := r.PathValue("id")
 	id, err := strconv.Atoi(idStr)

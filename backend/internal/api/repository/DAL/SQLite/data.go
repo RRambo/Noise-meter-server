@@ -109,9 +109,11 @@ func Close(ctx context.Context, r *DataRepository) {
 func (r *DataRepository) Create(data *models.Data, ctx context.Context) error {
 
 	// Set default values if not provided
-	if data.DeviceID == "" {
-		data.DeviceID = "arduino_001"
-	}
+	/*
+		if data.DeviceID == "" {
+			data.DeviceID = "arduino_001"
+		}
+	*/
 	if data.Threshold == 0 {
 		data.Threshold = 70.0
 	}
