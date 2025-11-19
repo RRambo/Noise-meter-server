@@ -10,9 +10,11 @@ import (
 	"time"
 )
 
+// PostHandler handles real-time sound data from Arduino
 func PostHandler(w http.ResponseWriter, r *http.Request, logger *log.Logger, ds service.DataService) {
 	var data models.Data
 
+	// Decode JSON payload
 	if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(`{"error": "Invalid request data. Please check your input."}`))
@@ -23,8 +25,24 @@ func PostHandler(w http.ResponseWriter, r *http.Request, logger *log.Logger, ds 
 	if data.MeasureTime == "" {
 		data.MeasureTime = time.Now().Format(time.RFC3339)
 	}
+
+	// Fill default device ID if missing
 	if data.DeviceID == "" {
 		data.DeviceID = "arduino_001"
+	}
+
+	// Fill missing sound fields
+	if data.CurrentSoundLevel == 0 {
+		data.CurrentSoundLevel = data.SoundLevel
+	}
+	if data.SoundLevel == 0 {
+		data.SoundLevel = data.CurrentSoundLevel
+	}
+	if data.AverageSoundLevel == 0 {
+		data.AverageSoundLevel = data.CurrentSoundLevel
+	}
+	if data.Threshold == 0 {
+		data.Threshold = 100 // default threshold
 	}
 
 	logger.Println("Received POST /data from Arduino:")
@@ -33,6 +51,7 @@ func PostHandler(w http.ResponseWriter, r *http.Request, logger *log.Logger, ds 
 	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 	defer cancel()
 
+	// Save data to repository
 	if err := ds.Create(&data, ctx); err != nil {
 		switch err.(type) {
 		case service.DataError:
@@ -46,6 +65,7 @@ func PostHandler(w http.ResponseWriter, r *http.Request, logger *log.Logger, ds 
 		}
 	}
 
+	// Return the created record as JSON
 	w.WriteHeader(http.StatusCreated)
 	if err := json.NewEncoder(w).Encode(data); err != nil {
 		logger.Println("Error encoding data:", err, data)

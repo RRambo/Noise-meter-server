@@ -67,6 +67,7 @@ func setupDataHandlers(mux *http.ServeMux, sf *service.ServiceFactory, logger *l
 		return err
 	}
 
+	// Standard /data endpoint
 	mux.HandleFunc("/data", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
@@ -82,6 +83,7 @@ func setupDataHandlers(mux *http.ServeMux, sf *service.ServiceFactory, logger *l
 		}
 	})
 
+	// /data/{id} endpoint
 	mux.HandleFunc("/data/{id}", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
@@ -95,10 +97,23 @@ func setupDataHandlers(mux *http.ServeMux, sf *service.ServiceFactory, logger *l
 		}
 	})
 
+	// /data/daily/{room} endpoint
 	mux.HandleFunc("/data/daily/{room}", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
 			data.GetDailySummaryHandler(w, r, logger, ds)
+		case http.MethodOptions:
+			data.OptionsHandler(w, r)
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	})
+
+	// ===== NEW: /data/hourly endpoint for Arduino 1-hour average =====
+	mux.HandleFunc("/data/hourly", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPost:
+			data.PostHourlyHandler(w, r, logger, ds) // <-- new hourly handler
 		case http.MethodOptions:
 			data.OptionsHandler(w, r)
 		default:
