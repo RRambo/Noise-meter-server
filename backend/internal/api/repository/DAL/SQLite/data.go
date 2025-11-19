@@ -343,3 +343,11 @@ func (r *DataRepository) GetDailySummary(roomName string, date time.Time, ctx co
 	}
 	return data, nil
 }
+// ExecContext executes an arbitrary SQL statement (used for cleanup, etc.)
+func (r *DataRepository) ExecContext(ctx context.Context, query string, args ...interface{}) (int64, error) {
+	res, err := r.sqlDB.ExecContext(ctx, query, args...)
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
+}

@@ -6,9 +6,11 @@ import (
 	"goapi/internal/api/handlers/locations"
 	"goapi/internal/api/middleware"
 	"goapi/internal/api/service"
+	dataService "goapi/internal/api/service/data"
 	"log"
 	"net/http"
 	"path/filepath"
+	"time"
 )
 
 type Server struct {
@@ -17,15 +19,44 @@ type Server struct {
 	logger     *log.Logger
 }
 
+// NewServer creates a new server instance
 func NewServer(ctx context.Context, sf *service.ServiceFactory, logger *log.Logger) *Server {
-	// Create a separate mux for API to apply authentication middleware
+	// Create API mux
 	apiMux := http.NewServeMux()
-	if err := setupDataHandlers(apiMux, sf, logger); err != nil {
+
+	// Create DataService
+	ds, err := sf.CreateDataService(service.SQLiteDataService)
+	if err != nil {
+		logger.Fatalf("Error creating data service: %v", err)
+	}
+
+	// Setup handlers
+	if err := setupDataHandlers(apiMux, sf, logger, ds); err != nil {
 		logger.Fatalf("Error setting up data handlers: %v", err)
 	}
 	if err := setupLocationHandlers(apiMux, sf, logger); err != nil {
 		logger.Fatalf("Error setting up location handlers: %v", err)
 	}
+
+	// Schedule daily cleanup of old data (older than 6 months)
+	go func() {
+		ticker := time.NewTicker(24 * time.Hour)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				cleanupCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+				if err := ds.CleanOldData(cleanupCtx); err != nil {
+					logger.Println("Error cleaning old data:", err)
+				} else {
+					logger.Println("Old data cleanup completed")
+				}
+				cancel()
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
 
 	// Main mux serves frontend static files and mounts API under /api/
 	mux := http.NewServeMux()
@@ -50,24 +81,20 @@ func NewServer(ctx context.Context, sf *service.ServiceFactory, logger *log.Logg
 	}
 }
 
+// Shutdown gracefully stops the server
 func (api *Server) Shutdown() error {
 	api.logger.Println("Gracefully shutting down server...")
 	return api.HTTPServer.Shutdown(api.ctx)
 }
 
+// ListenAndServe starts the HTTP server
 func (api *Server) ListenAndServe(addr string) error {
 	api.HTTPServer.Addr = addr
 	return api.HTTPServer.ListenAndServe()
 }
 
-// Setup REST API handlers for /data
-func setupDataHandlers(mux *http.ServeMux, sf *service.ServiceFactory, logger *log.Logger) error {
-	ds, err := sf.CreateDataService(service.SQLiteDataService)
-	if err != nil {
-		return err
-	}
-
-	// Standard /data endpoint
+// ==================== DATA HANDLERS ====================
+func setupDataHandlers(mux *http.ServeMux, sf *service.ServiceFactory, logger *log.Logger, ds dataService.DataService) error {
 	mux.HandleFunc("/data", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
@@ -83,7 +110,6 @@ func setupDataHandlers(mux *http.ServeMux, sf *service.ServiceFactory, logger *l
 		}
 	})
 
-	// /data/{id} endpoint
 	mux.HandleFunc("/data/{id}", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
@@ -97,7 +123,6 @@ func setupDataHandlers(mux *http.ServeMux, sf *service.ServiceFactory, logger *l
 		}
 	})
 
-	// /data/daily/{room} endpoint
 	mux.HandleFunc("/data/daily/{room}", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
@@ -109,11 +134,10 @@ func setupDataHandlers(mux *http.ServeMux, sf *service.ServiceFactory, logger *l
 		}
 	})
 
-	// ===== NEW: /data/hourly endpoint for Arduino 1-hour average =====
 	mux.HandleFunc("/data/hourly", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodPost:
-			data.PostHourlyHandler(w, r, logger, ds) // <-- new hourly handler
+			data.PostHourlyHandler(w, r, logger, ds)
 		case http.MethodOptions:
 			data.OptionsHandler(w, r)
 		default:
@@ -124,7 +148,7 @@ func setupDataHandlers(mux *http.ServeMux, sf *service.ServiceFactory, logger *l
 	return nil
 }
 
-// Setup REST API handlers for /locations
+// ==================== LOCATION HANDLERS ====================
 func setupLocationHandlers(mux *http.ServeMux, sf *service.ServiceFactory, logger *log.Logger) error {
 	ls, err := sf.CreateLocationService()
 	if err != nil {
@@ -148,10 +172,10 @@ func setupLocationHandlers(mux *http.ServeMux, sf *service.ServiceFactory, logge
 		switch r.Method {
 		case http.MethodPut:
 			locations.UpdateLocationHandler(w, r, logger, ls)
-		case http.MethodOptions:
-			w.WriteHeader(http.StatusOK)
 		case http.MethodDelete:
 			locations.DeleteHandler(w, r, logger, ls)
+		case http.MethodOptions:
+			w.WriteHeader(http.StatusOK)
 		default:
 			w.WriteHeader(http.StatusMethodNotAllowed)
 		}

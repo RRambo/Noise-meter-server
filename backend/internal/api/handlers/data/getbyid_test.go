@@ -12,81 +12,90 @@ import (
 )
 
 func TestGetByIDInvalidID(t *testing.T) {
-	mockDataService := &service.MockDataServiceSuccessful{}
+	mockDS := &service.MockDataServiceSuccessful{}
+
 	req, err := http.NewRequest("GET", "/data/invalid", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	req.SetPathValue("id", "invalid") // * Required for routing *
+	req.SetPathValue("id", "invalid") // required for routing
 	rr := httptest.NewRecorder()
 
-	data.GetByIDHandler(rr, req, log.Default(), mockDataService)
-	if status := rr.Code; status != http.StatusBadRequest {
-		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusBadRequest)
+	data.GetByIDHandler(rr, req, log.Default(), mockDS)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Errorf("handler returned wrong status code: got %v want %v", rr.Code, http.StatusBadRequest)
 	}
 
-	if strings.TrimSpace(rr.Body.String()) != `{"error": "Missconfigured ID."}` {
-		t.Errorf("handler returned unexpected body: got %v want %v", rr.Body.String(), `{"error": "Missconfigured ID."}`)
+	expected := `{"error": "Missconfigured ID."}`
+	if strings.TrimSpace(rr.Body.String()) != expected {
+		t.Errorf("handler returned unexpected body: got %v want %v", rr.Body.String(), expected)
 	}
 }
 
-func TestGetByIdInternalError(t *testing.T) {
-	mockDataService := &service.MockDataServiceError{}
+func TestGetByIDInternalError(t *testing.T) {
+	mockDS := &service.MockDataServiceError{}
+
 	req, err := http.NewRequest("GET", "/data/1", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	req.SetPathValue("id", "1") // * Required for routing *
-
+	req.SetPathValue("id", "1")
 	rr := httptest.NewRecorder()
 
-	data.GetByIDHandler(rr, req, log.Default(), mockDataService)
-	if status := rr.Code; status != http.StatusInternalServerError {
-		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusInternalServerError)
+	data.GetByIDHandler(rr, req, log.Default(), mockDS)
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("handler returned wrong status code: got %v want %v", rr.Code, http.StatusInternalServerError)
 	}
 
-	if strings.TrimSpace(rr.Body.String()) != `Internal server error.` {
-		t.Errorf("handler returned unexpected body: got %v want %v", rr.Body.String(), `Internal server error.`)
+	expected := `Internal server error.`
+	if strings.TrimSpace(rr.Body.String()) != expected {
+		t.Errorf("handler returned unexpected body: got %v want %v", rr.Body.String(), expected)
 	}
 }
 
-func TestGetByIdNotFound(t *testing.T) {
-	mockDataService := &service.MockDataServiceNotFound{}
+func TestGetByIDNotFound(t *testing.T) {
+	mockDS := &service.MockDataServiceNotFound{}
+
 	req, err := http.NewRequest("GET", "/data/1", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	req.SetPathValue("id", "1") // * Required for routing *
-
+	req.SetPathValue("id", "1")
 	rr := httptest.NewRecorder()
 
-	data.GetByIDHandler(rr, req, log.Default(), mockDataService)
-	if status := rr.Code; status != http.StatusNotFound {
-		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusNotFound)
+	data.GetByIDHandler(rr, req, log.Default(), mockDS)
+
+	if rr.Code != http.StatusNotFound {
+		t.Errorf("handler returned wrong status code: got %v want %v", rr.Code, http.StatusNotFound)
 	}
 
-	if strings.TrimSpace(rr.Body.String()) != `{"error": "Resource not found."}` {
-		t.Errorf("handler returned unexpected body: got %v want %v", rr.Body.String(), `{"error": "Resource not found."}`)
+	expected := `{"error": "Resource not found."}`
+	if strings.TrimSpace(rr.Body.String()) != expected {
+		t.Errorf("handler returned unexpected body: got %v want %v", rr.Body.String(), expected)
 	}
 }
 
-func TestGetByIdSuccessful(t *testing.T) {
-	mockDataService := &service.MockDataServiceSuccessful{}
+func TestGetByIDSuccessful(t *testing.T) {
+	mockDS := &service.MockDataServiceSuccessful{}
+
 	req, err := http.NewRequest("GET", "/data/1", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	req.SetPathValue("id", "1") // * Required for routing *
-
+	req.SetPathValue("id", "1")
 	rr := httptest.NewRecorder()
 
-	data.GetByIDHandler(rr, req, log.Default(), mockDataService)
-	if status := rr.Code; status != http.StatusOK {
-		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
+	data.GetByIDHandler(rr, req, log.Default(), mockDS)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("handler returned wrong status code: got %v want %v", rr.Code, http.StatusOK)
 	}
 
-	data, _ := mockDataService.ReadOne(1, nil)
-	expected, _ := json.Marshal(data)
+	// Avoid shadowing 'data' package by using 'mockData'
+	mockData, _ := mockDS.ReadOne(1, req.Context())
+	expected, _ := json.Marshal(mockData)
 
 	if strings.TrimSpace(rr.Body.String()) != string(expected) {
 		t.Errorf("handler returned unexpected body: got %v want %v", rr.Body.String(), string(expected))
