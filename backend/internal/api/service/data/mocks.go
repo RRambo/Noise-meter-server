@@ -6,127 +6,127 @@ import (
 	"time"
 )
 
-// * Mock implementation of DataService for testing purposes, always returns a successful response and Data object(s) *
+// ================= MOCK SUCCESS =================
 type MockDataServiceSuccessful struct{}
 
-func (m *MockDataServiceSuccessful) ReadMany(page int, rowsPerPage int, ctx context.Context) ([]*models.Data, error) {
+func (m *MockDataServiceSuccessful) Create(d *models.Data, ctx context.Context) error {
+	return nil
+}
+func (m *MockDataServiceSuccessful) ReadOne(id int, ctx context.Context) (*models.Data, error) {
+	return &models.Data{
+		ID:          id,
+		DeviceID:    "arduino_mock",
+		RoomName:    "Room_A",
+		SoundLevel:  60.0,
+		Threshold:   70.0,
+		MeasureTime: time.Now().Format(time.RFC3339),
+		IsAlert:     false,
+		Description: "mock data",
+	}, nil
+}
+func (m *MockDataServiceSuccessful) ReadMany(page, rows int, ctx context.Context) ([]*models.Data, error) {
 	return []*models.Data{
 		{
 			ID:          1,
-			DeviceID:    "arduino wifi R2",
-			RoomName:    "eating room",
-			SoundLevel:  65.5,
+			DeviceID:    "arduino_mock",
+			RoomName:    "Room_A",
+			SoundLevel:  60.0,
 			Threshold:   70.0,
-			MeasureTime: "2024-06-01T12:00:00Z",
+			MeasureTime: time.Now().Format(time.RFC3339),
 			IsAlert:     false,
-			Description: "test data 1",
+			Description: "mock data",
 		},
 		{
 			ID:          2,
-			DeviceID:    "arduino bluetooth B1",
-			RoomName:    "living room",
-			SoundLevel:  75.0,
+			DeviceID:    "arduino_mock",
+			RoomName:    "Room_B",
+			SoundLevel:  55.5,
 			Threshold:   70.0,
-			MeasureTime: "",
-			// Empty time for testing default timestap fill
-			IsAlert:     true,
-			Description: "test data 2",
+			MeasureTime: time.Now().Format(time.RFC3339),
+			IsAlert:     false,
+			Description: "mock data 2",
 		},
 	}, nil
 }
-
-func (m *MockDataServiceSuccessful) ReadOne(id int, ctx context.Context) (*models.Data, error) {
-	return &models.Data{
-		ID:          1,
-		DeviceID:    "arduino wifi R2",
-		RoomName:    "eating room",
-		SoundLevel:  65.5,
-		Threshold:   70.0,
-		MeasureTime: "2024-06-01T12:00:00Z",
-		IsAlert:     false,
-		Description: "test data 1",
+func (m *MockDataServiceSuccessful) Update(d *models.Data, ctx context.Context) (int64, error) {
+	return 1, nil
+}
+func (m *MockDataServiceSuccessful) Delete(d *models.Data, ctx context.Context) (int64, error) {
+	return 1, nil
+}
+func (m *MockDataServiceSuccessful) ValidateData(d *models.Data) error {
+	return nil
+}
+func (m *MockDataServiceSuccessful) GetDailySummary(room string, date time.Time, ctx context.Context) ([]*models.Data, error) {
+	return []*models.Data{
+		{
+			ID:          1,
+			DeviceID:    "arduino_mock",
+			RoomName:    room,
+			SoundLevel:  60.0,
+			Threshold:   70.0,
+			MeasureTime: date.Format(time.RFC3339),
+			IsAlert:     false,
+			Description: "daily summary mock",
+		},
 	}, nil
 }
-
-func (m *MockDataServiceSuccessful) Create(data *models.Data, ctx context.Context) error {
+func (m *MockDataServiceSuccessful) CleanOldData(ctx context.Context) error {
 	return nil
 }
 
-func (m *MockDataServiceSuccessful) Update(data *models.Data, ctx context.Context) (int64, error) {
-	return 1, nil
-}
-
-func (m *MockDataServiceSuccessful) Delete(data *models.Data, ctx context.Context) (int64, error) {
-	return 1, nil
-}
-
-func (m *MockDataServiceSuccessful) ValidateData(data *models.Data) error {
-	return nil
-}
-
-func (m *MockDataServiceSuccessful) GetDailySummary(roomName string, date time.Time, ctx context.Context) ([]*models.Data, error) {
-	return nil, nil
-}
-
-// * Mock implementation of DataService for testing purposes, always returns empty data *
-
-type MockDataServiceNotFound struct{}
-
-func (m *MockDataServiceNotFound) ReadMany(page int, rowsPerPage int, ctx context.Context) ([]*models.Data, error) {
-	return []*models.Data{}, nil
-}
-
-func (m *MockDataServiceNotFound) ReadOne(id int, ctx context.Context) (*models.Data, error) {
-	return nil, nil
-}
-
-func (m *MockDataServiceNotFound) Create(data *models.Data, ctx context.Context) error {
-	return nil
-}
-
-func (m *MockDataServiceNotFound) Update(data *models.Data, ctx context.Context) (int64, error) {
-	return 0, nil
-}
-
-func (m *MockDataServiceNotFound) Delete(data *models.Data, ctx context.Context) (int64, error) {
-	return 0, nil
-}
-
-func (m *MockDataServiceNotFound) ValidateData(data *models.Data) error {
-	return nil
-}
-
-func (m *MockDataServiceNotFound) GetDailySummary(roomName string, date time.Time, ctx context.Context) ([]*models.Data, error) {
-	return nil, nil
-}
-
-// * Mock implementation of DataService for testing purposes, always returns an error *
+// ================= MOCK ERROR =================
 type MockDataServiceError struct{}
 
-func (m *MockDataServiceError) ReadMany(page int, rowsPerPage int, ctx context.Context) ([]*models.Data, error) {
-	return nil, DataError{Message: "Error reading data."}
+func (m *MockDataServiceError) Create(d *models.Data, ctx context.Context) error {
+	return &DataError{Message: "Error creating data."}
 }
-
 func (m *MockDataServiceError) ReadOne(id int, ctx context.Context) (*models.Data, error) {
-	return nil, DataError{Message: "Error reading data."}
+	return nil, &DataError{Message: "Error reading data."}
+}
+func (m *MockDataServiceError) ReadMany(page, rows int, ctx context.Context) ([]*models.Data, error) {
+	return nil, &DataError{Message: "Error reading data."}
+}
+func (m *MockDataServiceError) Update(d *models.Data, ctx context.Context) (int64, error) {
+	return 0, &DataError{Message: "Error updating data."}
+}
+func (m *MockDataServiceError) Delete(d *models.Data, ctx context.Context) (int64, error) {
+	return 0, &DataError{Message: "Internal Server error"}
+}
+func (m *MockDataServiceError) ValidateData(d *models.Data) error {
+	return &DataError{Message: "Invalid data."}
+}
+func (m *MockDataServiceError) GetDailySummary(room string, date time.Time, ctx context.Context) ([]*models.Data, error) {
+	return nil, &DataError{Message: "Error fetching daily summary."}
+}
+func (m *MockDataServiceError) CleanOldData(ctx context.Context) error {
+	return &DataError{Message: "Error cleaning old data."}
 }
 
-func (m *MockDataServiceError) Create(data *models.Data, ctx context.Context) error {
-	return DataError{Message: "Error creating data."}
-}
+// ================= MOCK NOT FOUND =================
+type MockDataServiceNotFound struct{}
 
-func (m *MockDataServiceError) Update(data *models.Data, ctx context.Context) (int64, error) {
-	return 0, DataError{Message: "Error updating data."}
+func (m *MockDataServiceNotFound) Create(d *models.Data, ctx context.Context) error {
+	return &DataError{Message: "Resource not found."}
 }
-
-func (m *MockDataServiceError) Delete(data *models.Data, ctx context.Context) (int64, error) {
-	return 0, DataError{Message: "Error deleting data."}
+func (m *MockDataServiceNotFound) ReadOne(id int, ctx context.Context) (*models.Data, error) {
+	return nil, &DataError{Message: "Resource not found."}
 }
-
-func (m *MockDataServiceError) ValidateData(data *models.Data) error {
-	return nil
+func (m *MockDataServiceNotFound) ReadMany(page, rows int, ctx context.Context) ([]*models.Data, error) {
+	return nil, &DataError{Message: "Resource not found."}
 }
-
-func (m *MockDataServiceError) GetDailySummary(roomName string, date time.Time, ctx context.Context) ([]*models.Data, error) {
-	return nil, DataError{Message: "Error reading data."}
+func (m *MockDataServiceNotFound) Update(d *models.Data, ctx context.Context) (int64, error) {
+	return 0, &DataError{Message: "Resource not found."}
+}
+func (m *MockDataServiceNotFound) Delete(d *models.Data, ctx context.Context) (int64, error) {
+	return 0, &DataError{Message: "Resource not found."}
+}
+func (m *MockDataServiceNotFound) ValidateData(d *models.Data) error {
+	return &DataError{Message: "Resource not found."}
+}
+func (m *MockDataServiceNotFound) GetDailySummary(room string, date time.Time, ctx context.Context) ([]*models.Data, error) {
+	return nil, &DataError{Message: "Resource not found."}
+}
+func (m *MockDataServiceNotFound) CleanOldData(ctx context.Context) error {
+	return &DataError{Message: "Resource not found."}
 }

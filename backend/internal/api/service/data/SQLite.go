@@ -3,6 +3,7 @@ package data
 import (
 	"context"
 	"time"
+	"goapi/internal/api/repository/DAL/SQLite"
 	"goapi/internal/api/repository/models"
 )
 
@@ -18,7 +19,12 @@ func NewDataServiceSQLite(repo models.DataRepository, locationRepo models.Locati
 		locationRepo: locationRepo,
 	}
 }
-
+func (ds *DataServiceSQLite) CleanOldData(ctx context.Context) error {
+	// SQL deletes rows where measure_time is older than 6 months
+	query := `DELETE FROM data WHERE measure_time < datetime('now', '-6 months');`
+	_, err := ds.repo.(*SQLite.DataRepository).ExecContext(ctx, query)
+	return err
+}
 func (ds *DataServiceSQLite) Create(data *models.Data, ctx context.Context) error {
 	// If no room_name provided, set it as current chosen location
 	if data.RoomName == "" {

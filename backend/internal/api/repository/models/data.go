@@ -32,4 +32,6 @@ type DataRepository interface {
 	Delete(data *Data, ctx context.Context) (int64, error)
 	GetDailySummary(roomName string, date time.Time, ctx context.Context) ([]*Data, error) // To retreive daily summary statistics
 	GetByRoom(roomName string, ctx context.Context) ([]*Data, error)                       // (For now only for future implementation.)To retrieve data for a specific room
+	ExecContext(ctx context.Context, query string, args ...interface{}) (int64, error)
+
 }

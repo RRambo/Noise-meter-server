@@ -12,83 +12,88 @@ import (
 )
 
 func TestPutInvalidRequestBody(t *testing.T) {
+	mockDS := &service.MockDataServiceSuccessful{}
 
-	req, err := http.NewRequest("PUT", "/data", nil)
+	req, err := http.NewRequest("PUT", "/data", io.NopCloser(strings.NewReader("Plain text, not JSON")))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	req.Body = io.NopCloser(strings.NewReader(`Plain text, not JSON`))
 	rr := httptest.NewRecorder()
-	data.PutHandler(rr, req, log.Default(), &service.MockDataServiceSuccessful{})
+	data.PutHandler(rr, req, log.Default(), mockDS)
 
-	if status := rr.Code; status != http.StatusBadRequest {
-		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusBadRequest)
+	if rr.Code != http.StatusBadRequest {
+		t.Errorf("wrong status code: got %v, want %v", rr.Code, http.StatusBadRequest)
 	}
 
 	expected := `{"error": "Invalid request data. Please check your input."}`
 	if strings.TrimSpace(rr.Body.String()) != expected {
-		t.Errorf("handler returned unexpected body: got %v want %v", rr.Body.String(), expected)
+		t.Errorf("unexpected body: got %v, want %v", rr.Body.String(), expected)
 	}
 }
 
 func TestPutHandlerError(t *testing.T) {
+	mockDS := &service.MockDataServiceError{}
 
-	req, err := http.NewRequest("PUT", "/data", strings.NewReader(`{"id": 1, "device_id": "arduino_001", "room_name": "PlayRoom_A", "sound_level": 75.5, "threshold": 70.0, "measure_time": "2024-01-01T12:00:00Z", "is_alert": true, "description": "Test update"}`))
+	jsonBody := `{"id":1,"device_id":"arduino_001","room_name":"PlayRoom_A","sound_level":75.5,"threshold":70.0,"measure_time":"2024-01-01T12:00:00Z","is_alert":true,"description":"Test update"}`
+	req, err := http.NewRequest("PUT", "/data", io.NopCloser(strings.NewReader(jsonBody)))
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	rr := httptest.NewRecorder()
-	data.PutHandler(rr, req, log.Default(), &service.MockDataServiceError{})
+	data.PutHandler(rr, req, log.Default(), mockDS)
 
-	if status := rr.Code; status != http.StatusBadRequest {
-		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusBadRequest)
+	if rr.Code != http.StatusBadRequest {
+		t.Errorf("wrong status code: got %v, want %v", rr.Code, http.StatusBadRequest)
 	}
 
 	expected := `{"error": "Error updating data."}`
 	if strings.TrimSpace(rr.Body.String()) != expected {
-		t.Errorf("handler returned unexpected body: got %v want %v", rr.Body.String(), expected)
+		t.Errorf("unexpected body: got %v, want %v", rr.Body.String(), expected)
 	}
 }
 
 func TestPutDataNotFound(t *testing.T) {
+	mockDS := &service.MockDataServiceNotFound{}
 
-	req, err := http.NewRequest("PUT", "/data", strings.NewReader(`{"id": 999, "device_id": "arduino_001", "room_name": "PlayRoom_A", "sound_level": 75.5, "threshold": 70.0, "measure_time": "2024-01-01T12:00:00Z", "is_alert": false, "description": "Test update"}`))
-	// id:999 -> unexisting id for not found test
+	jsonBody := `{"id":999,"device_id":"arduino_001","room_name":"PlayRoom_A","sound_level":75.5,"threshold":70.0,"measure_time":"2024-01-01T12:00:00Z","is_alert":false,"description":"Test update"}`
+	req, err := http.NewRequest("PUT", "/data", io.NopCloser(strings.NewReader(jsonBody)))
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	rr := httptest.NewRecorder()
-	data.PutHandler(rr, req, log.Default(), &service.MockDataServiceNotFound{})
+	data.PutHandler(rr, req, log.Default(), mockDS)
 
-	if status := rr.Code; status != http.StatusNotFound {
-		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusNotFound)
+	if rr.Code != http.StatusNotFound {
+		t.Errorf("wrong status code: got %v, want %v", rr.Code, http.StatusNotFound)
 	}
 
 	expected := `{"error": "Resource not found."}`
 	if strings.TrimSpace(rr.Body.String()) != expected {
-		t.Errorf("handler returned unexpected body: got %v want %v", rr.Body.String(), expected)
+		t.Errorf("unexpected body: got %v, want %v", rr.Body.String(), expected)
 	}
 }
 
 func TestPutHandlerSuccess(t *testing.T) {
+	mockDS := &service.MockDataServiceSuccessful{}
 
-	req, err := http.NewRequest("PUT", "/data", strings.NewReader(`{"id": 1, "device_id": "arduino_001", "room_name": "PlayRoom_B", "sound_level": 82.3, "threshold": 70.0, "measure_time": "2024-10-27T14:30:00Z", "is_alert": true, "description": "Success test"}`))
+	jsonBody := `{"id":1,"device_id":"arduino_001","room_name":"PlayRoom_B","sound_level":82.3,"threshold":70.0,"measure_time":"2024-10-27T14:30:00Z","is_alert":true,"description":"Success test"}`
+	req, err := http.NewRequest("PUT", "/data", io.NopCloser(strings.NewReader(jsonBody)))
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	rr := httptest.NewRecorder()
-	data.PutHandler(rr, req, log.Default(), &service.MockDataServiceSuccessful{})
+	data.PutHandler(rr, req, log.Default(), mockDS)
 
-	if status := rr.Code; status != http.StatusOK {
-		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
+	if rr.Code != http.StatusOK {
+		t.Errorf("wrong status code: got %v, want %v", rr.Code, http.StatusOK)
 	}
 
 	expected := `{"id":1,"device_id":"arduino_001","room_name":"PlayRoom_B","sound_level":82.3,"threshold":70,"measure_time":"2024-10-27T14:30:00Z","is_alert":true,"description":"Success test"}`
 	if strings.TrimSpace(rr.Body.String()) != expected {
-		t.Errorf("handler returned unexpected body: got %v want %v", rr.Body.String(), expected)
+		t.Errorf("unexpected body: got %v, want %v", rr.Body.String(), expected)
 	}
 }
