@@ -98,7 +98,7 @@ func TestPostSuccessful(t *testing.T) {
 	}
 
 	// * Check the response body
-	expected := `{"id":1,"device_id":"arduino wifi R2","room_name":"eating room","sound_level":65.5,"threshold":70,"measure_time":"2024-06-01T12:00:00Z","is_alert":false,"description":"post test data 1"}`
+	expected := `{"id":1,"device_id":"arduino wifi R2","room_name":"eating room","sound_level":65.5,"threshold":70,"measure_time":"2024-06-01T12:00:00Z","is_alert":false,"description":"post test data 1","current_sound_level":65.5,"average_sound_level":65.5}`
 	if strings.TrimSpace(rr.Body.String()) != expected {
 		t.Errorf("handler returned unexpected body: got %v want %v", rr.Body.String(), expected)
 	}
