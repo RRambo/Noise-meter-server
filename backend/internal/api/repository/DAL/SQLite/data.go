@@ -297,8 +297,6 @@ func (r *DataRepository) GetByRoom(roomName string, ctx context.Context) ([]*mod
 }
 
 func (r *DataRepository) GetDailySummary(roomName string, date time.Time, ctx context.Context) ([]*models.Data, error) {
-	// Basic stub: returns all data for the room (replace with real daily summary logic as needed)
-
 	// Calculate start and end of the day
 	year, month, day := date.Date()
 	location := date.Location()
@@ -307,6 +305,9 @@ func (r *DataRepository) GetDailySummary(roomName string, date time.Time, ctx co
 
 	startOfDayStr := startOfDay.UTC().Format(time.RFC3339)
 	endOfDayStr := endOfDay.UTC().Format(time.RFC3339)
+
+	// Add this hourly_average_sound_level to the query it's been implemented
+	// AND hourly_average_sound_level IS NOT NULL
 
 	// Query to get data for the specified room and date range
 	query := `
@@ -343,6 +344,7 @@ func (r *DataRepository) GetDailySummary(roomName string, date time.Time, ctx co
 	}
 	return data, nil
 }
+
 // ExecContext executes an arbitrary SQL statement (used for cleanup, etc.)
 func (r *DataRepository) ExecContext(ctx context.Context, query string, args ...interface{}) (int64, error) {
 	res, err := r.sqlDB.ExecContext(ctx, query, args...)
