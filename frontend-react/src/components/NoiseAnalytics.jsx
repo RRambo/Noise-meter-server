@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
 import '../styles/NoiseAnalytics.css';
-import { dataAPI } from '../services/api';
 import ChartEmptyState from './ChartEmptyState';
 
-function NoiseAnalytics({ roomName, allLocations }) {
+function NoiseAnalytics({ roomName, allLocations, getDailySummary, dailyPeak, setDailyPeak }) {
     const [activeTab, setActiveTab] = useState('daily');
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [selectedRoom, setSelectedRoom] = useState(roomName);
@@ -17,13 +16,18 @@ function NoiseAnalytics({ roomName, allLocations }) {
         setSelectedRoom(roomName);
     }, [roomName]);
 
+    // Generate chart data
+    useEffect(() => {
+        generateChartData();
+    }, [activeTab, selectedDate, selectedRoom, weekOffset]);
+
     // Get which day of week from date
     const getDayOfWeek = (date) => {
         const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
         return days[date.getDay()];
     };
 
-    // Get which daye from chosen day of week
+    // Get which day from chosen day of week
     const getDateForDay = (dayName) => {
         const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
         const targetDayIndex = days.indexOf(dayName);
@@ -58,35 +62,10 @@ function NoiseAnalytics({ roomName, allLocations }) {
         setSelectedDate(newDate);
     };
 
-    // Generate chart data
-    useEffect(() => {
-        generateChartData();
-    }, [activeTab, selectedDate, selectedRoom, weekOffset]);
-
-
-
-    const getDailySummary = async (room, date) => {
-        // Gets data from a specific room measured during a specific day
-        try {
-            // all this to set the date to midnight without changing the selectedDate
-            let y, m, d;
-            y = date.getFullYear();
-            m = date.getMonth() + 1;
-            d = date.getDate();
-
-            const utcMid = new Date(Date.UTC(y, m - 1, d, 0, 0, 0, 0));
-
-            const response = await dataAPI.getDailySummary(room, utcMid.toISOString());
-            // Do something with the fetched data
-            return response.data
-        } catch (error) {
-            console.error('Error fetching daily summary:', error);
-        }
-    };
-
     const generateChartData = async () => {
-        // too laggy but works :/
+        // kinda laggy but works :/
         // get data from a specific room with measure_time during a specific day
+        // (specific day = today on first page render)
         const dailyData = await getDailySummary(selectedRoom, selectedDate) || []
 
         // Check if there are data within the hours of 8 and 17
@@ -95,12 +74,30 @@ function NoiseAnalytics({ roomName, allLocations }) {
             return h >= 8 && h <= 17;
         });
 
+        // check if selectedDate is today
+        let isToday = false;
+        const currentTime = new Date();
+
+        if (selectedDate.getFullYear() === currentTime.getFullYear() &&
+            selectedDate.getMonth() === currentTime.getMonth() &&
+            selectedDate.getDate() === currentTime.getDate()
+        ) isToday = true;
+
+        // if there is no data between 8 and 17, exit with no chartData
         if (!hasDataInWindow) {
             setChartData([])
+            if (isToday) {
+                setDailyPeak('-');
+                console.warn(`No data for daily peak statCard`)
+            }
             return;
         }
 
         if (activeTab === 'daily') {
+            // if requested date is today, 
+            // get the peak for the daily peak StatCard as well
+            let highestPeak = 0;
+
             // calculates the average and looks for the peaks
             // Works while we wait for the hourly data implementation
 
@@ -114,7 +111,7 @@ function NoiseAnalytics({ roomName, allLocations }) {
                 // ignore timezone offset
                 const match = e.measure_time.match(/T(\d{1,2}):/);
                 const hour = match ? Number(match[1]) : NaN;
-                
+
                 // Only add the data within 8 - 17
                 if (hours.includes(hour)) {
                     const b = buckets[hour];
@@ -132,6 +129,12 @@ function NoiseAnalytics({ roomName, allLocations }) {
                     avgLevel: count > 0 ? Math.round(sum / count) : null,
                     peakLevel: max === null ? null : max,
                 });
+
+                // Look for the highest peak for the daily peak StatCard
+                if (isToday && max > highestPeak) {
+                    highestPeak = max;
+                    setDailyPeak(max);
+                }
             });
             /*// for checking the data in the buckets
             data.forEach(e =>
@@ -251,7 +254,7 @@ function NoiseAnalytics({ roomName, allLocations }) {
                                 value={selectedDate.toISOString().split('T')[0]}
                                 onChange={(e) => {
                                     // prevent error when clearing date
-                                    e.target.value == "" ? handleDateChange(new Date()) : handleDateChange(new Date(e.target.value))
+                                    e.target.value === "" ? handleDateChange(new Date()) : handleDateChange(new Date(e.target.value))
                                 }}
                             />
                         </div>
@@ -295,7 +298,7 @@ function NoiseAnalytics({ roomName, allLocations }) {
                 {/* Chart */}
                 <div className="chart-container">
                     {activeTab === 'daily' ? (
-                        chartData.length == 0 ? (
+                        chartData.length === 0 ? (
                             // Overkill of an empty chart state XD
                             <ChartEmptyState chosenDate={selectedDate.toLocaleDateString()} onRetry={() => handleDateChange(new Date(selectedDate))} />
                         ) : (
@@ -349,45 +352,13 @@ function NoiseAnalytics({ roomName, allLocations }) {
                         )
 
                     ) : (
-                        <>
-                            <ResponsiveContainer width="100%" height={300}>
-                                <BarChart data={chartData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-                                    <XAxis
-                                        dataKey="day"
-                                        stroke="#666"
-                                        style={{ fontSize: '0.85rem' }}
-                                    />
-                                    <YAxis
-                                        stroke="#666"
-                                        style={{ fontSize: '0.85rem' }}
-                                        domain={[0, 100]}
-                                        label={{ value: 'Decibels (dB)', angle: -90, position: 'insideLeft', style: { fontSize: '0.85rem' } }}
-                                    />
-                                    <Tooltip
-                                        contentStyle={{
-                                            backgroundColor: 'white',
-                                            border: '1px solid #ccc',
-                                            borderRadius: '8px',
-                                            padding: '10px'
-                                        }}
-                                    />
-                                    <Legend
-                                        wrapperStyle={{ paddingTop: '10px' }}
-                                        iconType="rect"
-                                    />
-                                    <Bar dataKey="avgNoise" fill="#81C9CC" name="Average Noise" />
-                                    <Bar dataKey="peakNoise" fill="#5F9EA0" name="Peak Noise" />
-                                </BarChart>
-                            </ResponsiveContainer>
-
-                            {/* Quiet Time Duration Chart */}
-                            <div className="quiet-time-section">
-                                <h6 className="section-title">
-                                    <span className="icon">🔇</span> Quiet Time Duration (minutes)
-                                </h6>
-                                <ResponsiveContainer width="100%" height={200}>
-                                    <LineChart data={quietTimeData} margin={{ top: 10, right: 30, left: 0, bottom: 5 }}>
+                        chartData.length === 0 ? (
+                            // Overkill of an empty chart state XD
+                            <ChartEmptyState chosenDate={selectedDate.toLocaleDateString()} onRetry={() => handleDateChange(new Date(selectedDate))} />
+                        ) : (
+                            <>
+                                <ResponsiveContainer width="100%" height={300}>
+                                    <BarChart data={chartData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
                                         <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
                                         <XAxis
                                             dataKey="day"
@@ -397,7 +368,8 @@ function NoiseAnalytics({ roomName, allLocations }) {
                                         <YAxis
                                             stroke="#666"
                                             style={{ fontSize: '0.85rem' }}
-                                            domain={[0, 300]}
+                                            domain={[0, 100]}
+                                            label={{ value: 'Decibels (dB)', angle: -90, position: 'insideLeft', style: { fontSize: '0.85rem' } }}
                                         />
                                         <Tooltip
                                             contentStyle={{
@@ -407,17 +379,53 @@ function NoiseAnalytics({ roomName, allLocations }) {
                                                 padding: '10px'
                                             }}
                                         />
-                                        <Line
-                                            type="monotone"
-                                            dataKey="duration"
-                                            stroke="#5F9EA0"
-                                            strokeWidth={2}
-                                            dot={{ fill: '#5F9EA0', r: 4 }}
+                                        <Legend
+                                            wrapperStyle={{ paddingTop: '10px' }}
+                                            iconType="rect"
                                         />
-                                    </LineChart>
+                                        <Bar dataKey="avgNoise" fill="#81C9CC" name="Average Noise" />
+                                        <Bar dataKey="peakNoise" fill="#5F9EA0" name="Peak Noise" />
+                                    </BarChart>
                                 </ResponsiveContainer>
-                            </div>
-                        </>
+
+                                {/* Quiet Time Duration Chart */}
+                                <div className="quiet-time-section">
+                                    <h6 className="section-title">
+                                        <span className="icon">🔇</span> Quiet Time Duration (minutes)
+                                    </h6>
+                                    <ResponsiveContainer width="100%" height={200}>
+                                        <LineChart data={quietTimeData} margin={{ top: 10, right: 30, left: 0, bottom: 5 }}>
+                                            <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
+                                            <XAxis
+                                                dataKey="day"
+                                                stroke="#666"
+                                                style={{ fontSize: '0.85rem' }}
+                                            />
+                                            <YAxis
+                                                stroke="#666"
+                                                style={{ fontSize: '0.85rem' }}
+                                                domain={[0, 300]}
+                                            />
+                                            <Tooltip
+                                                contentStyle={{
+                                                    backgroundColor: 'white',
+                                                    border: '1px solid #ccc',
+                                                    borderRadius: '8px',
+                                                    padding: '10px'
+                                                }}
+                                            />
+                                            <Line
+                                                type="monotone"
+                                                dataKey="duration"
+                                                stroke="#5F9EA0"
+                                                strokeWidth={2}
+                                                dot={{ fill: '#5F9EA0', r: 4 }}
+                                            />
+                                        </LineChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </>
+                        )
                     )}
                 </div>
 

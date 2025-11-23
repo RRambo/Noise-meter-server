@@ -64,7 +64,7 @@ function App() {
       setCurrentNoiseLevel(randomLevel);
 
       // Update daily peak
-      setDailyPeak(prev => Math.max(prev, randomLevel));
+      //setDailyPeak(prev => Math.max(prev, randomLevel));
 
       if (randomLevel > threshold) {
         const now = Date.now();
@@ -178,21 +178,30 @@ function App() {
   const loadStats = async () => {
     if (!chosenLocation) return;
 
-    try {
+    try { 
+      // Daily peak statCard is updated in the NoiseAnalytics component, whenever chartData is generated.
+      // As i understood it, this only get's called whenever chosen location is changed
+      // and the generateChartData is also called then, so no need to do it again here.
+
+      // Still needs functionality for getting actual weekly average
+
       // Try to get real data from API
       const response = await dataAPI.getAll();
-      const allData = response.data || [];
+      const resData = response.data || [];
 
-      // Filter data for the chosen location
-      const roomData = allData.filter(d => d.room_name === chosenLocation.name);
+      // Filter data for hours between 8 and 17
+      const roomData = resData.filter((d) => {
+        const hour = new Date(d.measure_time).getHours();
+        return hour >= 8 && hour <= 17 && d.room_name == chosenLocation.name;
+      });
 
       if (roomData.length > 0) {
         // Calculate daily peak and weekly average
         const levels = roomData.map(d => d.sound_level);
-        const peak = Math.max(...levels);
+        //const peak = Math.max(...levels);
         const average = Math.round(levels.reduce((a, b) => a + b, 0) / levels.length);
 
-        setDailyPeak(prev => Math.max(prev, peak));
+        //setDailyPeak(prev => Math.max(prev, peak));
         setWeeklyAverage(average);
       }
     }
@@ -201,6 +210,25 @@ function App() {
       // // Fallback to simulated data
     }
   };
+
+  const getDailySummary = async (room, date) => {
+        // Gets data from a specific room measured during a specific day
+        try {
+            // all this to set the date to midnight without changing the selectedDate
+            let y, m, d;
+            y = date.getFullYear();
+            m = date.getMonth() + 1;
+            d = date.getDate();
+
+            const utcMid = new Date(Date.UTC(y, m - 1, d, 0, 0, 0, 0));
+
+            const response = await dataAPI.getDailySummary(room, utcMid.toISOString());
+            // Do something with the fetched data
+            return response.data
+        } catch (error) {
+            console.error('Error fetching daily summary:', error);
+        }
+    };
 
   const handleLocationChange = async (locationId) => {
     try {
@@ -258,8 +286,6 @@ function App() {
       console.error('Error updating threshold', error);
     }
   }
-
-
 
   // Close toast
   const handleCloseToast = () => {
@@ -334,6 +360,9 @@ function App() {
 
         <NoiseAnalytics roomName={chosenLocation?.name || 'None'}
           allLocations={locations}
+          getDailySummary={getDailySummary}
+          dailyPeak={dailyPeak}
+          setDailyPeak={setDailyPeak}
         />
       </div>
     </div>
