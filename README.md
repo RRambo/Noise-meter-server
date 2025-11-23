@@ -292,7 +292,7 @@ taskkill /PID  /F
 ## Project Structure
 
 ```
-API 0.1/
+Noise-meter-server/
 ├── backend/
 │   ├── cmd/api/              # Main application entry
 │   ├── internal/api/
@@ -317,6 +317,7 @@ API 0.1/
 - [ ] JWT authentication replacement
 - [ ] Environment variable configuration
 - [ ] Unit tests for React components
+- [ ] reload button for refreshing all the displayed data
 
 ## License
 
