@@ -2,6 +2,13 @@
 #include <ArduinoHttpClient.h>
 #include <ArduinoJson.h>
 
+// Equation for converting the raw ADC value to dB with calibrated regression values
+// adc = analogRead(soundSensorPin); // Read the ADC value
+// dB = (adc+b)/a // Convert the raw ADC value to dB using regression values
+// a and b will be calculated in the calibration (excel file i created)
+// Excel file: https://centriafi-my.sharepoint.com/:x:/g/personal/rami_kontio_centria_fi/IQCu7gqctI9VSJnb9UOq4Mi4AS5kDfW7-6MEfM4wVLJJMRg?e=3kGB1b
+// Source: https://circuitdigest.com/microcontroller-projects/arduino-sound-level-measurement
+
 // ===== Wi-Fi & Server =====
 const char* ssid = "_";   // Used wifi username      
 const char* password = "_";     // Used wifi password
