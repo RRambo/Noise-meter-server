@@ -30,6 +30,10 @@ func (s *LocationServiceSQLite) GetAllLocations() ([]*models.Location, error) {
 	return s.repo.GetAllLocations(s.ctx)
 }
 
+func (s *LocationServiceSQLite) GetChosenLocation() (*models.Location, error) {
+	return s.repo.GetChosenLocation(s.ctx)
+}
+
 func (s *LocationServiceSQLite) SetChosenLocation(id int) error {
 	return s.repo.SetChosenLocation(int64(id), s.ctx)
 }

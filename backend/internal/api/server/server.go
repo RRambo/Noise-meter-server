@@ -168,6 +168,10 @@ func setupLocationHandlers(mux *http.ServeMux, sf *service.ServiceFactory, logge
 		}
 	})
 
+	mux.HandleFunc("GET /locations/chosen", func(w http.ResponseWriter, r *http.Request) {
+		locations.GetChosenLocationHandler(w, r, logger, ls)
+	})
+
 	mux.HandleFunc("/locations/{id}", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodPut:

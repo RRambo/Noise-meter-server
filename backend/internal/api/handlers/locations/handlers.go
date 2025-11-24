@@ -13,6 +13,7 @@ import (
 type LocationService interface {
 	CreateLocation(location *models.Location) error
 	GetAllLocations() ([]*models.Location, error)
+	GetChosenLocation() (*models.Location, error)
 	SetChosenLocation(id int) error
 	UpdateThreshold(id int, newThreshold float64) error
 	DeleteLocation(location *models.Location, ctx context.Context) (int64, error)
@@ -30,6 +31,30 @@ func GetLocationsHandler(w http.ResponseWriter, r *http.Request, logger *log.Log
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"locations": locations,
 	})
+}
+
+func GetChosenLocationHandler(w http.ResponseWriter, r *http.Request, logger *log.Logger, svc LocationService) {
+	location, err := svc.GetChosenLocation()
+	if err != nil {
+		logger.Println("Error getting chosen location:", err)
+		http.Error(w, `{"error": "Failed to get chosen location"}`, http.StatusInternalServerError)
+		return
+	}
+	if location == nil {
+		// * This is a User Error, response in JSON and with a 404 status code
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte(`{"error": "Resource not found."}`))
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(`{"message": "Location retrieved"}`))
+
+	if err := json.NewEncoder(w).Encode(location); err != nil {
+		logger.Println("Error encoding location:", err, location)
+		http.Error(w, "Internal server error.", http.StatusInternalServerError)
+		return
+	}
 }
 
 func CreateLocationHandler(w http.ResponseWriter, r *http.Request, logger *log.Logger, svc LocationService) {
