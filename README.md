@@ -106,6 +106,7 @@ All endpoints require Basic Authentication:
 | PUT    | `/api/data`             | Update existing measurement        |
 | DELETE | `/api/data/{id}`        | Delete measurement                 |
 | GET    | `/api/locations`        | Get all locations                  |
+| GET    | `/api/locations/chosen` | Get currently chosen location      |
 | POST   | `/api/locations`        | Add a new location                 |
 | PUT    | `/api/locations/{id}`   | Set a location as currently chosen |
 | DELETE | `/api/locations/{id}`   | Delete a location                  |
@@ -312,6 +313,7 @@ Noise-meter-server/
 - [ ] WebSocket integration for real-time data streaming
 - [ ] Historical data export (CSV/PDF)
 - [ ] Alert notifications when threshold exceeded
+- [ ] Toggle button for alerts/notifications
 - [ ] Multi-room comparison view
 - [ ] Teacher activity correlation analysis
 - [ ] JWT authentication replacement
