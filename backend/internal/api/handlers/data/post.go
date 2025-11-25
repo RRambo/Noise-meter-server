@@ -41,8 +41,9 @@ func PostHandler(w http.ResponseWriter, r *http.Request, logger *log.Logger, ds 
 	if data.AverageSoundLevel == 0 {
 		data.AverageSoundLevel = data.CurrentSoundLevel
 	}
+
 	if data.Threshold == 0 {
-		data.Threshold = 100 // default threshold
+		data.Threshold = 70 // default threshold
 	}
 
 	logger.Println("Received POST /data from Arduino:")

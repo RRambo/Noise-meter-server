@@ -3,7 +3,7 @@ import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, L
 import '../styles/NoiseAnalytics.css';
 import ChartEmptyState from './ChartEmptyState';
 
-function NoiseAnalytics({ roomName, allLocations, getDailySummary, dailyPeak, setDailyPeak }) {
+function NoiseAnalytics({ roomName, allLocations, getDailySummary, setDailyPeak }) {
     const [activeTab, setActiveTab] = useState('daily');
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [selectedRoom, setSelectedRoom] = useState(roomName);
@@ -49,7 +49,7 @@ function NoiseAnalytics({ roomName, allLocations, getDailySummary, dailyPeak, se
 
     // Handle date change
     const handleDateChange = (newDate) => {
-        if (newDate == "") {
+        if (newDate === "") {
             return;
         } else {
             setSelectedDate(newDate);
@@ -122,7 +122,7 @@ function NoiseAnalytics({ roomName, allLocations, getDailySummary, dailyPeak, se
                 }
             });
             // Calculate the average and peak to the data array
-            hours.map(h => {
+            hours.forEach(h => {
                 const { count, sum, max } = buckets[h];
                 data.push({
                     time: `${h}:00`,
@@ -133,13 +133,13 @@ function NoiseAnalytics({ roomName, allLocations, getDailySummary, dailyPeak, se
                 // Look for the highest peak for the daily peak StatCard
                 if (isToday && max > highestPeak) {
                     highestPeak = max;
-                    setDailyPeak(max);
                 }
             });
             /*// for checking the data in the buckets
             data.forEach(e =>
                 console.log(`time: ${e.time}, average: ${e.avgLevel}, peak: ${e.peakLevel}`)
             )*/
+            setDailyPeak(highestPeak)
             setChartData(data);
         } else {
             // Generate weekly bar chart data
@@ -194,7 +194,8 @@ function NoiseAnalytics({ roomName, allLocations, getDailySummary, dailyPeak, se
     const canGoBack = weekOffset > -4;
     const canGoForward = weekOffset < 0;
 
-    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+    // currently unused
+    //const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 
     return (
         <div className="noise-analytics-card card">

@@ -164,7 +164,7 @@ function App() {
     } finally {
       setLoading(false);
     }
-    if (newLocationName != '' || !chosenLocation) {
+    if (newLocationName !== '' || !chosenLocation) {
       try {
         await locationAPI.updateThreshold(newLocation.id, parseFloat(threshold));
       } catch (error) {
@@ -192,7 +192,7 @@ function App() {
       // Filter data for hours between 8 and 17
       const roomData = resData.filter((d) => {
         const hour = new Date(d.measure_time).getHours();
-        return hour >= 8 && hour <= 17 && d.room_name == chosenLocation.name;
+        return hour >= 8 && hour <= 17 && d.room_name === chosenLocation.name;
       });
 
       if (roomData.length > 0) {
@@ -361,7 +361,6 @@ function App() {
         <NoiseAnalytics roomName={chosenLocation?.name || 'None'}
           allLocations={locations}
           getDailySummary={getDailySummary}
-          dailyPeak={dailyPeak}
           setDailyPeak={setDailyPeak}
         />
       </div>
