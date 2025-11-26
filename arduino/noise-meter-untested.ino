@@ -1,6 +1,11 @@
 #include <WiFiNINA.h>
 #include <ArduinoHttpClient.h>
 #include <ArduinoJson.h>
+#include <cmath>
+
+using std::pow;
+using std::log10;
+using std::sqrt;
 
 // waiting for testing
 
@@ -33,13 +38,7 @@ HttpClient client = HttpClient(wifi, server, port);
 // ===== Authentication =====
 const char* username = "kids_noisemeter_admin"; 
 const char* passwordAuth = "passwordkids";
-/*
-// ===== Variables for 1-hour average =====
-float runningAverage = 0;
-unsigned long readingCount = 0;
-unsigned long lastHourTime = 0;
-const unsigned long oneHourMillis = 3600000; // 1 hour in ms or 60000 if needed to check hourlyAverage faster
-*/
+
 // ===== LED spike logic =====
 unsigned long ledOnUntil = 0;
 
@@ -56,12 +55,24 @@ const double P0_SQ = P0 * P0;
 
 unsigned long samplesPerBlockEstimate = 0;
 double BlockLeq[blocksPerHour];
+double BlockLeqReg[blocksPerHour];
 int currentBlockIndex = 0;
+
+// ===== sustained block peak state =====
+int peakADC = 0;
+double peak_dB = 0.0;
+unsigned long candidateStartMs = 0;   // when candidate above peakADC started
+int candidateMaxADC = 0;              // highest ADC seen while candidate active
+const unsigned long sustainMs = 500;  // require 500 ms sustain to accept new peak
+
+// Candidate must exceed current accepted peak by this margin to start.
+// While candidate is active, dips down to (peakADC - peakMargin) are tolerated.
+const int peakMargin = 6; // needs to be tuned while testing
 
 // ===== regression values =====
 // Yet to be calculated
-const double a = 0;
-const double b = 0;
+const double a = 0; // slope
+const double b = 0; // intercept
 
 void setup() {
   Serial.begin(9600);
@@ -81,7 +92,6 @@ void setup() {
   Serial.println("\nConnected to WiFi!");
   Serial.print("IP Address: ");
   Serial.println(WiFi.localIP());
-  lastHourTime = millis(); // initialize hourly timer
 
   // initialize timers
   blockStartMillis = millis();
@@ -92,9 +102,20 @@ void loop() {
   unsigned long blockDurationMicros = blockSeconds * 1000000UL;
   unsigned long start = micros();
 
+  // raw ADC accumulators
   unsigned long N = 0;
   double sum = 0.0;
   double sumSq = 0.0;
+
+  // regression-based Leq accumulators
+  unsigned long sampleCount = 0;
+  double sumEnergy = 0;
+
+  // reset block peak state
+  peakADC = 0;
+  peak_dB = 0.0;
+  candidateStartMs = 0;
+  candidateMaxADC = 0;
 
   // 10 minute block
   while ((unsigned long)(micros() - start) < blockDurationMicros) {
@@ -108,15 +129,51 @@ void loop() {
     int total = 0;
     for (int i = 0; i < numSamples; i++) {
       total += analogRead(soundSensorPin);
-      delay(10);
+      delay(10); // Interval. Should be tuned
     }
-    // measured and rounded raw ADC sample
     int adc = total / numSamples; 
 
+    double L_inst_dB = ((double)adc + b) / a;
+
+    // Accumulate energy for calculating the average (Leq)
+    sumEnergy += pow(10.0, L_inst_dB / 10.0);
+    sampleCount++;
+
+    // === raw ADC accumulation (without regression) ===
     double v = (double)adc;
     sum += v;
     sumSq += v * v;
-    N++; // for counting the amount of samples in a 10 minute block
+    N++;
+
+    // === Sustained peak detection ===
+    // Start only if adc > peakADC + peakMargin to avoid unnatural noise
+    if (adc > peakADC + peakMargin) {
+      if (candidateStartMs == 0) {
+        candidateStartMs = millis();
+        candidateMaxADC = adc;
+      } else {
+        if (adc > candidateMaxADC) candidateMaxADC = adc;
+      }
+      // Promote candidate if sustained long enough (0.5 seconds)
+      if ((unsigned long)(millis() - candidateStartMs) >= sustainMs) {
+        peakADC = candidateMaxADC;
+        peak_dB = ((double)peakADC + b) / a;
+        // reset candidates
+        candidateStartMs = 0;
+        candidateMaxADC = 0;
+      }
+    } else if (candidateStartMs != 0) {
+      // Candidate active: allow small dips down to (peakADC - peakMargin)
+      // We keep the candidate running if ADC remains >= (peakADC - peakMargin)
+      if (adc >= (peakADC - peakMargin)) {
+        // Update candidateMaxADC if higher
+        if (adc > candidateMaxADC) candidateMaxADC = adc;
+      } else {
+        // Candidate invalidated by a larger dip in noise
+        candidateStartMs = 0;
+        candidateMaxADC = 0;
+      }
+    }
 
     // === LED logic ===
     if (adc > threshold) {
@@ -126,8 +183,27 @@ void loop() {
     }
     digitalWrite(ledPin, (millis() < ledOnUntil) ? HIGH : LOW);
     delayMicroSeconds(10); // for reducing CPU load
-  }
+  } // end 10 minute block sampling
 
+  samplesPerBlockEstimate = sampleCount > 0 ? sampleCount : N;
+
+  // === Regression-based block Leq ===
+  double blockLeqReg_dB = 0;
+  if (sampleCount > 0) {
+    double avgLinear = sumEnergy / (double)sampleCount;
+    if (avgLinear <= 0.0) avgLinear = 1e-20;
+    blockLeqReg_dB = 10.0 * log10(avgLinear);
+  }
+  Serial.print("Block average (regression): "); Serial.println(blockLeqReg_dB, 2);
+
+  // === Peak ===
+  Serial.print("Block peak (sustained >= "); Serial.print(sustainMs);
+  Serial.print(" ms, margin "); Serial.print(peakMargin);
+  Serial.print(" ADC) dB: "); Serial.println(peak_dB, 2);
+  
+  if (currentBlockIndex < blocksPerHour) BlockLeqReg[currentBlockIndex] = blockLeqReg_dB;
+
+  // === average (Leq) calculated without regression ===
   double mean = sum / (double)N;
   double meanSq = sumSq / (double)N;
   double ms_signal_adc2 = meanSq - mean * mean;
@@ -135,38 +211,65 @@ void loop() {
   if (ms_pa2 <= 0.0) ms_pa2 = 1e-20;
   double blockLeq_dB = 10.0 * log10(ms_pa2 / P0_SQ);
 
-  blockLeq[currentBlockIndex++] = blockLeq_dB;
+  if (currentBlockIndex < blocksPerHour) BlockLeq[currentBlockIndex] = blockLeq_dB;
+  Serial.println("Block values without regression: ");
   Serial.print("Block: "); Serial.println(currentBlockIndex);
-  Serial.print(" Samples: "); Serial.println(samplesPerBlockEstimate);
-  Serial.print("Leq dB: "); Serial.println(blockLeq_dB, 2);
+  Serial.print(" Samples (estimate): "); Serial.println(samplesPerBlockEstimate);
+  Serial.print(" Leq dB: "); Serial.println(blockLeq_dB, 2);
 
-  // For logging the average / hour
+  // For logging the average / hour using BlockLeq
   // Doesn't get sent yet
   if (currentBlockIndex >= blocksPerHour) {
+    // Hourly average using regression-based block values
+    double sumLinearReg = 0.0;
+    int validCountReg = 0;
+    for (int i = 0; i < blocksPerHour; ++i) {
+      sumLinearReg += pow(10.0, BlockLeqReg[i] / 10.0);
+      validCountReg++;
+    }
+    if (validCountReg > 0) {
+      double avgLinearReg = sumLinearReg / (double)validCountReg;
+      double hourLeqReq_dB = 10.0 * log10(avgLinearReg)
+      Serial.print("Leq 1h (regression, dB): "); Serial.println(hourLeqReq_dB, 2)
+    }
+
+    // Hourly average without regression 
     double sumLinear = 0.0;
-    for (int i = 0; i < blocksPerHour; ++i) sumLinear += pow(10.0, BlockLeq[i] / 10.0);
-    double avgLinear = sumLinear / (double)blocksPerHour;
-    double hourLeq_dB = 10.0 * log10(avgLinear);
-    Serial.print("Leq 1h (dB): "); Serial.println(hourLeq_dB, 2);
+    int validCount = 0;
+    for (int i = 0; i < blocksPerHour; ++i) {
+      sumLinear += pow(10.0, BlockLeq[i] / 10.0);
+      validCount++;
+    }
+    if (validCountReg > 0) {
+      double avgLinear = sumLinear / (double)validCount;
+      double hourLeq_dB = 10.0 * log10(avgLinear);
+      Serial.print("Leq 1h (dB): "); Serial.println(hourLeq_dB, 2);
+    }
+
     currentBlockIndex = 0;
   }
 
   // Converting the threshold back to dB
-  threshold = (threshold + b) / a;
+  threshold = round((threshold + b) / a);
 
   delay(100);
-  
-  /*// === Update 1-hour running average ===
-  readingCount++;
-  runningAverage = ((runningAverage * (readingCount - 1)) + soundLevel) / readingCount;*/
 
   // === Send block data (10 minutes) to server ===
+  // regression data for now. The data should be compared
+  sendData(deviceID, blockLeqReg_dB, threshold, "An average of measurements in a 10 minute block");
+  sendData(deviceID, peak_dB, threshold, "A peak of measurements in a 10 minute block");
+
+  //delay(checkInterval);
+}
+
+// === function for sending data ===
+void sendData(char* idValue, double soundLevelValue, double thresholdValue, char* descriptionValue = "") {
   if (WiFi.status() == WL_CONNECTED) {
     String jsonData = "{";
-    jsonData += "\"device_id\":\"" + String(deviceID) + "\",";
-    jsonData += "\"sound_level\":" + String(round(blockLeq_dB)) + ",";
-    jsonData += "\"threshold\":" + String(threshold) + ",";
-    jsonData += "\"description\":\"An average of measurements in a 10 minute block\"";
+    jsonData += "\"device_id\":\"" + String(idValue) + "\",";
+    jsonData += "\"sound_level\":" + String(round(soundLevelValue)) + ",";
+    jsonData += "\"threshold\":" + String(thresholdValue) + ",";
+    jsonData += "\"description\":" + String(descriptionValue);
     jsonData += "}";
 
     client.beginRequest();
@@ -186,44 +289,9 @@ void loop() {
     Serial.print("Response: ");
     Serial.println(response);
   }
-
-  /*// === Send 1-hour average if time passed ===
-  if (millis() - lastHourTime >= oneHourMillis) {
-    if (WiFi.status() == WL_CONNECTED) {
-      String jsonHourly = "{";
-      jsonHourly += "\"device_id\":\"" + String(deviceID) + "\",";
-      jsonHourly += "\"room_name\":\"" + String(roomName) + "\",";
-      jsonHourly += "\"hourly_average_sound_level\":" + String(runningAverage, 2) + ",";
-      jsonHourly += "\"description\":\"1-hour average sound reading\"";
-      jsonHourly += "}";
-
-      client.beginRequest();
-      client.post("/data/hourly"); // Hourly endpoint
-      String auth = String(username) + ":" + String(passwordAuth);
-      client.sendHeader("Authorization", "Basic " + base64Encode(auth));
-      client.sendHeader("Content-Type", "application/json");
-      client.sendHeader("Content-Length", jsonHourly.length());
-      client.beginBody();
-      client.print(jsonHourly);
-      client.endRequest();
-
-      int statusCode = client.responseStatusCode();
-      String response = client.responseBody();
-      Serial.print("Hourly Status code: ");
-      Serial.println(statusCode);
-      Serial.print("Hourly Response: ");
-      Serial.println(response);
-    }
-
-    // Reset 1-hour counters
-    runningAverage = 0;
-    readingCount = 0;
-    lastHourTime = millis();
-  }*/
-
-  //delay(checkInterval);
 }
 
+// === function for getting the current threshold ===
 void getThreshold() {
   if (WiFi.status() !== WL_CONNECTED) return;
   client.beginRequest();
