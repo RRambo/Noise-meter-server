@@ -29,6 +29,7 @@ const char* deviceID = "arduino_001";
 // ===== Pins & Sensor =====
 const int ledPin = 13;
 const int soundSensorPin = A0;
+const int thresholdADC = 0; // Sound threshold as a raw ADC value
 const int threshold = 0;   // Sound threshold
 const unsigned long checkInterval = 500; // 0.5 sec
 
@@ -161,6 +162,9 @@ void loop() {
         // reset candidates
         candidateStartMs = 0;
         candidateMaxADC = 0;
+        
+        // Send data to server whenever threshold is reached
+        sendData(deviceID, peak_dB, threshold, "A peak of measurements in a" + String(blockSeconds / 60) + "minute block");
       }
     } else if (candidateStartMs != 0) {
       // Candidate active: allow small dips down to (peakADC - peakMargin)
@@ -176,7 +180,7 @@ void loop() {
     }
 
     // === LED logic ===
-    if (adc > threshold) {
+    if (adc > thresholdADC) {
       if (millis() > ledOnUntil) {
         ledOnUntil = millis() + 300UL; // Minimum ON for short spike
       }
@@ -249,15 +253,12 @@ void loop() {
     currentBlockIndex = 0;
   }
 
-  // Converting the threshold back to dB
-  threshold = round((threshold + b) / a);
-
   delay(100);
 
   // === Send block data (10 minutes) to server ===
   // regression data for now. The data should be compared
-  sendData(deviceID, blockLeqReg_dB, threshold, "An average of measurements in a 10 minute block");
-  sendData(deviceID, peak_dB, threshold, "A peak of measurements in a 10 minute block");
+  sendData(deviceID, blockLeqReg_dB, threshold, "An average of measurements in a" + String(blockSeconds / 60) + "minute block");
+  sendData(deviceID, peak_dB, threshold, "A peak of measurements in a" + String(blockSeconds / 60) + "minute block");
 
   //delay(checkInterval);
 }
@@ -314,7 +315,8 @@ void getThreshold() {
       float t = doc["threshold"].as<float>();
       Serial.print("Current threshold: ");
       Serial.println(t);
-      threshold = round(a * t - b); // convert the threshold into ADC for comparison
+      thresholdADC = round(a * t - b); // convert the threshold into ADC for comparison
+      threshold = t;
     } else {
       Serial.print("JSON parse error: ");
       Serial.println(err.c_str());
