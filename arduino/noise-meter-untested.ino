@@ -1,11 +1,7 @@
 #include <WiFiNINA.h>
 #include <ArduinoHttpClient.h>
 #include <ArduinoJson.h>
-#include <cmath>
-
-using std::pow;
-using std::log10;
-using std::sqrt;
+#include <math.h>
 
 // waiting for testing
 
@@ -18,26 +14,34 @@ using std::sqrt;
 // Source: https://circuitdigest.com/microcontroller-projects/arduino-sound-level-measurement
 
 // ===== Wi-Fi & Server =====
+// Prototypes
+void fetchThreshold();
+void sendData(const char* idValue, double soundLevelValue, double thresholdValue, const String& descriptionValue = "");
+String base64Encode(String input);
+// ---------------------------------
+
+// ===== Wi-Fi & Server =====
 const char* ssid = "_";   // Used wifi username      
 const char* password = "_";     // Used wifi password
 char server[] = "_._._._";   // Server IP Address    
 int port = 8080;
 
 // ===== Device & Room Info =====
-const char* deviceID = "arduino_001";     
+const char* deviceID = "arduino_001";
 
 // ===== Pins & Sensor =====
 const int ledPin = 13;
+const int buzzerPin = 12;         // <- set default buzzer pin (change if needed)
 const int soundSensorPin = A0;
-const int thresholdADC = 0; // Sound threshold as a raw ADC value
-const int threshold = 0;   // Sound threshold
+int thresholdADC = 0;             // Sound threshold as a raw ADC value (now mutable)
+double threshold = 70;           // Sound threshold (now mutable)
 const unsigned long checkInterval = 500; // 0.5 sec
 
 WiFiClient wifi;
 HttpClient client = HttpClient(wifi, server, port);
 
 // ===== Authentication =====
-const char* username = "kids_noisemeter_admin"; 
+const char* username = "kids_noisemeter_admin";
 const char* passwordAuth = "passwordkids";
 
 // ===== LED spike logic =====
@@ -46,11 +50,11 @@ unsigned long ledOnUntil = 0;
 // ===== Block/hour accumulators =====
 unsigned long blockStartMillis = 0;
 unsigned long lastThresholdFetch = 0;
-const unsigned long thresholdFetchInterval = 60UL * 1000UL; // <-- threshold gets updated every 1 minute
+const unsigned long thresholdFetchInterval = 60UL * 1000UL; // threshold updated every 1 minute
 
 const unsigned long blockSeconds = 600UL; // --> 10 minutes
 const int blocksPerHour = 6;
-const double calibrationFactor = 1.0;
+double calibrationFactor = 1.0;
 const double P0 = 20e-6;
 const double P0_SQ = P0 * P0;
 
@@ -67,13 +71,14 @@ int candidateMaxADC = 0;              // highest ADC seen while candidate active
 const unsigned long sustainMs = 500;  // require 500 ms sustain to accept new peak
 
 // Candidate must exceed current accepted peak by this margin to start.
-// While candidate is active, dips down to (peakADC - peakMargin) are tolerated.
+// While candidate is active, dips down to (candidateMaxADC - peakMargin) are tolerated.
 const int peakMargin = 6; // needs to be tuned while testing
 
 // ===== regression values =====
-// Yet to be calculated
-const double a = 0; // slope
-const double b = 0; // intercept
+// Provide safe non-zero defaults to avoid divide-by-zero.
+// Replace with calibration values for your sensor.
+double a = 6.82; // slope (ADC -> dB)
+double b = -30.0; // intercept
 
 void setup() {
   Serial.begin(9600);
@@ -125,6 +130,7 @@ void loop() {
       fetchThreshold();
       lastThresholdFetch = millis();
     }
+
     // === Read & smooth sound sensor ===
     const int numSamples = 20;
     int total = 0;
@@ -132,9 +138,11 @@ void loop() {
       total += analogRead(soundSensorPin);
       delay(10); // Interval. Should be tuned
     }
-    int adc = total / numSamples; 
+    int adc = total / numSamples;
 
+    // regression mapping (ensure a != 0)
     double L_inst_dB = ((double)adc + b) / a;
+    peak_dB = ((double)peakADC + b) /a;
 
     // Accumulate energy for calculating the average (Leq)
     sumEnergy += pow(10.0, L_inst_dB / 10.0);
@@ -147,8 +155,8 @@ void loop() {
     N++;
 
     // === Sustained peak detection ===
-    // Start only if adc > peakADC + peakMargin to avoid unnatural noise
-    if (adc > peakADC + peakMargin) {
+    // Start only if adc > candidateMaxADC + peakMargin to avoid unnatural noise spikes
+    if (adc > candidateMaxADC + peakMargin) {
       if (candidateStartMs == 0) {
         candidateStartMs = millis();
         candidateMaxADC = adc;
@@ -162,15 +170,13 @@ void loop() {
         // reset candidates
         candidateStartMs = 0;
         candidateMaxADC = 0;
-        
+
         // Send data to server whenever threshold is reached
-        sendData(deviceID, peak_dB, threshold, "A peak of measurements in a" + String(blockSeconds / 60) + "minute block");
+        sendData(deviceID, peak_dB, threshold, "A peak of measurements in a " + String(blockSeconds / 60) + " minute block");
       }
     } else if (candidateStartMs != 0) {
-      // Candidate active: allow small dips down to (peakADC - peakMargin)
-      // We keep the candidate running if ADC remains >= (peakADC - peakMargin)
-      if (adc >= (peakADC - peakMargin)) {
-        // Update candidateMaxADC if higher
+      // Candidate active: allow small dips down to (candidateMaxADC - peakMargin)
+      if (adc >= (candidateMaxADC - peakMargin)) {
         if (adc > candidateMaxADC) candidateMaxADC = adc;
       } else {
         // Candidate invalidated by a larger dip in noise
@@ -180,13 +186,13 @@ void loop() {
     }
 
     // === LED logic ===
-    if (adc > thresholdADC) {
+    if (peak_dB > threshold) {
       if (millis() > ledOnUntil) {
         ledOnUntil = millis() + 300UL; // Minimum ON for short spike
       }
     }
     digitalWrite(ledPin, (millis() < ledOnUntil) ? HIGH : LOW);
-    delayMicroSeconds(10); // for reducing CPU load
+    delayMicroseconds(10); // for reducing CPU load
   } // end 10 minute block sampling
 
   samplesPerBlockEstimate = sampleCount > 0 ? sampleCount : N;
@@ -204,7 +210,7 @@ void loop() {
   Serial.print("Block peak (sustained >= "); Serial.print(sustainMs);
   Serial.print(" ms, margin "); Serial.print(peakMargin);
   Serial.print(" ADC) dB: "); Serial.println(peak_dB, 2);
-  
+
   if (currentBlockIndex < blocksPerHour) BlockLeqReg[currentBlockIndex] = blockLeqReg_dB;
 
   // === average (Leq) calculated without regression ===
@@ -233,18 +239,18 @@ void loop() {
     }
     if (validCountReg > 0) {
       double avgLinearReg = sumLinearReg / (double)validCountReg;
-      double hourLeqReq_dB = 10.0 * log10(avgLinearReg)
-      Serial.print("Leq 1h (regression, dB): "); Serial.println(hourLeqReq_dB, 2)
+      double hourLeqReq_dB = 10.0 * log10(avgLinearReg);
+      Serial.print("Leq 1h (regression, dB): "); Serial.println(hourLeqReq_dB, 2);
     }
 
-    // Hourly average without regression 
+    // Hourly average without regression
     double sumLinear = 0.0;
     int validCount = 0;
     for (int i = 0; i < blocksPerHour; ++i) {
       sumLinear += pow(10.0, BlockLeq[i] / 10.0);
       validCount++;
     }
-    if (validCountReg > 0) {
+    if (validCount > 0) {
       double avgLinear = sumLinear / (double)validCount;
       double hourLeq_dB = 10.0 * log10(avgLinear);
       Serial.print("Leq 1h (dB): "); Serial.println(hourLeq_dB, 2);
@@ -257,24 +263,24 @@ void loop() {
 
   // === Send block data (10 minutes) to server ===
   // regression data for now. The data should be compared
-  sendData(deviceID, blockLeqReg_dB, threshold, "An average of measurements in a" + String(blockSeconds / 60) + "minute block");
-  sendData(deviceID, peak_dB, threshold, "A peak of measurements in a" + String(blockSeconds / 60) + "minute block");
+  sendData(deviceID, blockLeqReg_dB, threshold, "An average of measurements in a " + String(blockSeconds / 60) + " minute block");
+  sendData(deviceID, peak_dB, threshold, "A peak of measurements in a " + String(blockSeconds / 60) + " minute block");
 
   //delay(checkInterval);
 }
 
 // === function for sending data ===
-void sendData(char* idValue, double soundLevelValue, double thresholdValue, char* descriptionValue = "") {
+void sendData(const char* idValue, double soundLevelValue, double thresholdValue, const String& descriptionValue) {
   if (WiFi.status() == WL_CONNECTED) {
     String jsonData = "{";
     jsonData += "\"device_id\":\"" + String(idValue) + "\",";
     jsonData += "\"sound_level\":" + String(round(soundLevelValue)) + ",";
     jsonData += "\"threshold\":" + String(thresholdValue) + ",";
-    jsonData += "\"description\":" + String(descriptionValue);
+    jsonData += "\"description\":\"" + descriptionValue + "\"";
     jsonData += "}";
 
     client.beginRequest();
-    client.post("/api/data"); 
+    client.post("/api/data");
     String auth = String(username) + ":" + String(passwordAuth);
     client.sendHeader("Authorization", "Basic " + base64Encode(auth));
     client.sendHeader("Content-Type", "application/json");
@@ -293,14 +299,14 @@ void sendData(char* idValue, double soundLevelValue, double thresholdValue, char
 }
 
 // === function for getting the current threshold ===
-void getThreshold() {
-  if (WiFi.status() !== WL_CONNECTED) return;
+void fetchThreshold() {
+  if (WiFi.status() != WL_CONNECTED) return;
   client.beginRequest();
   client.get("/locations/chosen");
-  String auth = String (username) + ":" + String(passwordAuth);
+  String auth = String(username) + ":" + String(passwordAuth);
   client.sendHeader("Authorization", "Basic " + base64Encode(auth));
   client.endRequest();
-  
+
   int status = client.responseStatusCode();
   String body = client.responseBody();
   Serial.print("Threshold fetch status: ");
@@ -341,4 +347,3 @@ String base64Encode(String input) {
   while (encoded.length() % 4) encoded += '=';
   return encoded;
 }
-
