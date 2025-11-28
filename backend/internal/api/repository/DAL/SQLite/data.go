@@ -11,7 +11,9 @@ import (
 type DataRepository struct {
 	sqlDB *sql.DB
 	createStmt,
+	upsertLatestStmt *sql.Stmt
 	readStmt,
+	ReadLatestStmt *sql.Stmt
 	readManyStmt,
 	updateStmt,
 	deleteStmt *sql.Stmt
@@ -26,9 +28,24 @@ func NewDataRepository(sqlDB DAL.SQLDatabase, ctx context.Context) (models.DataR
 	}
 
 	// Create the data table if it doesn't exist
-	if _, err := repo.sqlDB.Exec(`CREATE TABLE  IF NOT EXISTS data (
+	if _, err := repo.sqlDB.Exec(`CREATE TABLE IF NOT EXISTS data (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		device_id TEXT NOT NULL DEFAULT 'arduino_001',
+		room_name TEXT NOT NULL DEFAULT 'unassigned',
+		sound_level REAL NOT NULL DEFAULT 0.0,
+		threshold REAL NOT NULL DEFAULT 70.0, 
+		measure_time TEXT NOT NULL,
+		is_alert INTEGER NOT NULL DEFAULT 0,
+		description TEXT DEFAULT ''
+	);`); err != nil {
+		repo.sqlDB.Close()
+		return nil, err
+	}
+
+	// Create the latest_data table if it doesn't exist
+	// for the latest data per device
+	if _, err := repo.sqlDB.Exec(`CREATE TABLE  IF NOT EXISTS latest_data (
+		device_id TEXT PRIMARY KEY,
 		room_name TEXT NOT NULL DEFAULT 'unassigned',
 		sound_level REAL NOT NULL DEFAULT 0.0,
 		threshold REAL NOT NULL DEFAULT 70.0, 
@@ -51,15 +68,41 @@ func NewDataRepository(sqlDB DAL.SQLDatabase, ctx context.Context) (models.DataR
 	}
 	repo.createStmt = createStmt
 
+	upsertLatestStmt, err := repo.sqlDB.Prepare(`INSERT INTO latest_data (
+	device_id, room_name, sound_level, threshold, measure_time, is_alert, description)
+	VALUES (?, ?, ?, ?, ?, ?, ?)
+	ON CONFLICT(device_id) DO UPDATE SET
+		room_name = excluded.room_name,
+		sound_level = excluded.sound_level,
+		threshold = excluded.threshold,
+		measure_time = excluded.measure_time,
+		is_alert = excluded.is_alert,
+		description = excluded.description`)
+	if err != nil {
+		repo.sqlDB.Close() // Close the database connection if statement preparation fails
+		return nil, err
+	}
+	repo.upsertLatestStmt = upsertLatestStmt
+
 	// Read single record
 	readStmt, err := repo.sqlDB.Prepare(`SELECT 
 	id, device_id, room_name, sound_level, threshold, measure_time, is_alert, description
-	FROM data WHERE id = ?`) // I think there was bug here with mistaked rune ("" instead of ``)
+	FROM data WHERE id = ?`)
 	if err != nil {
 		repo.sqlDB.Close()
 		return nil, err
 	}
 	repo.readStmt = readStmt
+
+	// Read latest record
+	ReadLatestStmt, err := repo.sqlDB.Prepare(`SELECT 
+	device_id, room_name, sound_level, threshold, measure_time, is_alert, description
+	FROM latest_data WHERE device_id = ?`)
+	if err != nil {
+		repo.sqlDB.Close()
+		return nil, err
+	}
+	repo.ReadLatestStmt = ReadLatestStmt
 
 	// Read multiple records with pagination
 	readManyStmt, err := repo.sqlDB.Prepare(`SELECT
@@ -109,11 +152,6 @@ func Close(ctx context.Context, r *DataRepository) {
 func (r *DataRepository) Create(data *models.Data, ctx context.Context) error {
 
 	// Set default values if not provided
-	/*
-		if data.DeviceID == "" {
-			data.DeviceID = "arduino_001"
-		}
-	*/
 	if data.Threshold == 0 {
 		data.Threshold = 70.0
 	}
@@ -145,6 +183,27 @@ func (r *DataRepository) Create(data *models.Data, ctx context.Context) error {
 	return nil
 }
 
+func (r *DataRepository) CreateLatest(data *models.Data, ctx context.Context) error {
+	// 1. upsert latest
+	res, err := r.upsertLatestStmt.ExecContext(ctx,
+		data.DeviceID,
+		data.RoomName,
+		data.SoundLevel,
+		data.Threshold,
+		data.MeasureTime,
+		data.IsAlert,
+		data.Description)
+	if err != nil {
+		return err
+	}
+	id, err := res.LastInsertId()
+	if err != nil {
+		return err
+	}
+	data.ID = int(id)
+	return nil
+}
+
 func (r *DataRepository) ReadOne(id int, ctx context.Context) (*models.Data, error) {
 	row := r.readStmt.QueryRowContext(ctx, id)
 	var data models.Data
@@ -152,6 +211,27 @@ func (r *DataRepository) ReadOne(id int, ctx context.Context) (*models.Data, err
 	// Scan with correct field order matching new schema
 	err := row.Scan(
 		&data.ID,
+		&data.DeviceID,
+		&data.RoomName,
+		&data.SoundLevel,
+		&data.Threshold,
+		&data.MeasureTime,
+		&data.IsAlert,
+		&data.Description)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &data, nil
+}
+
+func (r *DataRepository) ReadLatest(id string, ctx context.Context) (*models.Data, error) {
+	row := r.ReadLatestStmt.QueryRowContext(ctx, id)
+	var data models.Data
+
+	err := row.Scan(
 		&data.DeviceID,
 		&data.RoomName,
 		&data.SoundLevel,

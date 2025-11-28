@@ -12,6 +12,10 @@ type MockDataServiceSuccessful struct{}
 func (m *MockDataServiceSuccessful) Create(d *models.Data, ctx context.Context) error {
 	return nil
 }
+
+func (m *MockDataServiceSuccessful) CreateLatest(d *models.Data, ctx context.Context) error {
+	return nil
+}
 func (m *MockDataServiceSuccessful) ReadOne(id int, ctx context.Context) (*models.Data, error) {
 	return &models.Data{
 		ID:          id,
@@ -24,6 +28,19 @@ func (m *MockDataServiceSuccessful) ReadOne(id int, ctx context.Context) (*model
 		Description: "mock data",
 	}, nil
 }
+
+func (m *MockDataServiceSuccessful) ReadLatest(id string, ctx context.Context) (*models.Data, error) {
+	return &models.Data{
+		DeviceID:    id,
+		RoomName:    "Room_A",
+		SoundLevel:  60.0,
+		Threshold:   70.0,
+		MeasureTime: time.Now().Format(time.RFC3339),
+		IsAlert:     false,
+		Description: "mock data",
+	}, nil
+}
+
 func (m *MockDataServiceSuccessful) ReadMany(page, rows int, ctx context.Context) ([]*models.Data, error) {
 	return []*models.Data{
 		{
@@ -81,7 +98,13 @@ type MockDataServiceError struct{}
 func (m *MockDataServiceError) Create(d *models.Data, ctx context.Context) error {
 	return &DataError{Message: "Error creating data."}
 }
+func (m *MockDataServiceError) CreateLatest(d *models.Data, ctx context.Context) error {
+	return &DataError{Message: "Error creating data."}
+}
 func (m *MockDataServiceError) ReadOne(id int, ctx context.Context) (*models.Data, error) {
+	return nil, &DataError{Message: "Error reading data."}
+}
+func (m *MockDataServiceError) ReadLatest(id string, ctx context.Context) (*models.Data, error) {
 	return nil, &DataError{Message: "Error reading data."}
 }
 func (m *MockDataServiceError) ReadMany(page, rows int, ctx context.Context) ([]*models.Data, error) {
@@ -109,7 +132,13 @@ type MockDataServiceNotFound struct{}
 func (m *MockDataServiceNotFound) Create(d *models.Data, ctx context.Context) error {
 	return &DataError{Message: "Resource not found."}
 }
+func (m *MockDataServiceNotFound) CreateLatest(d *models.Data, ctx context.Context) error {
+	return &DataError{Message: "Resource not found."}
+}
 func (m *MockDataServiceNotFound) ReadOne(id int, ctx context.Context) (*models.Data, error) {
+	return nil, &DataError{Message: "Resource not found."}
+}
+func (m *MockDataServiceNotFound) ReadLatest(id string, ctx context.Context) (*models.Data, error) {
 	return nil, &DataError{Message: "Resource not found."}
 }
 func (m *MockDataServiceNotFound) ReadMany(page, rows int, ctx context.Context) ([]*models.Data, error) {

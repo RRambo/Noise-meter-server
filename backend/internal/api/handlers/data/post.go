@@ -31,7 +31,12 @@ func PostHandler(w http.ResponseWriter, r *http.Request, logger *log.Logger, ds 
 		data.DeviceID = "arduino_001"
 	}
 
+	if data.Threshold == 0 {
+		data.Threshold = 70 // default threshold
+	}
+
 	// Fill missing sound fields
+	// Data currently not saved to DB, since it has no fields for these
 	if data.CurrentSoundLevel == 0 {
 		data.CurrentSoundLevel = data.SoundLevel
 	}
@@ -42,27 +47,43 @@ func PostHandler(w http.ResponseWriter, r *http.Request, logger *log.Logger, ds 
 		data.AverageSoundLevel = data.CurrentSoundLevel
 	}
 
-	if data.Threshold == 0 {
-		data.Threshold = 70 // default threshold
-	}
-
-	logger.Println("Received POST /data from Arduino:")
+	logger.Println("Received POST /api/data from Arduino:")
 	logger.Printf("%+v\n", data)
 
 	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 	defer cancel()
 
-	// Save data to repository
-	if err := ds.Create(&data, ctx); err != nil {
-		switch err.(type) {
-		case service.DataError:
-			w.WriteHeader(http.StatusBadRequest)
-			w.Write([]byte(`{"error": "` + err.Error() + `"}`))
-			return
-		default:
-			logger.Println("Error creating data:", err, data)
-			http.Error(w, "Internal server error.", http.StatusInternalServerError)
-			return
+	// Constantly sent data for current sound level card in UI
+	// Only has 1 row per device that gets updated
+	// So it doesn't need to be periodically cleared
+	if !data.IsPeriodic {
+		// Save latest_data to repository
+		if err := ds.CreateLatest(&data, ctx); err != nil {
+			switch err.(type) {
+			case service.DataError:
+				w.WriteHeader(http.StatusBadRequest)
+				w.Write([]byte(`{"error": "` + err.Error() + `"}`))
+				return
+			default:
+				logger.Println("Error updating latest measurement data:", err, data)
+				http.Error(w, "Internal server error.", http.StatusInternalServerError)
+				return
+			}
+		}
+	} else {
+		// Data sent periodically (every 10 minutes)
+		// Save data to repository
+		if err := ds.Create(&data, ctx); err != nil {
+			switch err.(type) {
+			case service.DataError:
+				w.WriteHeader(http.StatusBadRequest)
+				w.Write([]byte(`{"error": "` + err.Error() + `"}`))
+				return
+			default:
+				logger.Println("Error creating data:", err, data)
+				http.Error(w, "Internal server error.", http.StatusInternalServerError)
+				return
+			}
 		}
 	}
 

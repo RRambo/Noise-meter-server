@@ -162,9 +162,6 @@ void loop() {
         // reset candidates
         candidateStartMs = 0;
         candidateMaxADC = 0;
-        
-        // Send data to server whenever threshold is reached
-        sendData(deviceID, peak_dB, threshold, "A peak of measurements in a" + String(blockSeconds / 60) + "minute block");
       }
     } else if (candidateStartMs != 0) {
       // Candidate active: allow small dips down to (peakADC - peakMargin)
@@ -187,6 +184,9 @@ void loop() {
     }
     digitalWrite(ledPin, (millis() < ledOnUntil) ? HIGH : LOW);
     delayMicroSeconds(10); // for reducing CPU load
+    // Sending data every measurement for current sound level card
+    // No need to explicitlty send data to server whenever threshold is reached
+    sendData(deviceID, peak_dB, threshold, "latest measurement", false);
   } // end 10 minute block sampling
 
   samplesPerBlockEstimate = sampleCount > 0 ? sampleCount : N;
@@ -257,20 +257,21 @@ void loop() {
 
   // === Send block data (10 minutes) to server ===
   // regression data for now. The data should be compared
-  sendData(deviceID, blockLeqReg_dB, threshold, "An average of measurements in a" + String(blockSeconds / 60) + "minute block");
-  sendData(deviceID, peak_dB, threshold, "A peak of measurements in a" + String(blockSeconds / 60) + "minute block");
+  sendData(deviceID, blockLeqReg_dB, threshold, "An average of measurements in a" + String(blockSeconds / 60) + "minute block", true);
+  sendData(deviceID, peak_dB, threshold, "A peak of measurements in a" + String(blockSeconds / 60) + "minute block", true);
 
   //delay(checkInterval);
 }
 
 // === function for sending data ===
-void sendData(char* idValue, double soundLevelValue, double thresholdValue, char* descriptionValue = "") {
+void sendData(char* idValue, double soundLevelValue, double thresholdValue, char* descriptionValue = "", bool isPeriodicValue) {
   if (WiFi.status() == WL_CONNECTED) {
     String jsonData = "{";
     jsonData += "\"device_id\":\"" + String(idValue) + "\",";
     jsonData += "\"sound_level\":" + String(round(soundLevelValue)) + ",";
     jsonData += "\"threshold\":" + String(thresholdValue) + ",";
     jsonData += "\"description\":" + String(descriptionValue);
+    jsonData += "\"is_periodic\":" + String(isPeriodicValue);
     jsonData += "}";
 
     client.beginRequest();

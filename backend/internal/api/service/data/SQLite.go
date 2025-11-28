@@ -2,9 +2,8 @@ package data
 
 import (
 	"context"
-	"time"
-	"goapi/internal/api/repository/DAL/SQLite"
 	"goapi/internal/api/repository/models"
+	"time"
 )
 
 // * Implementation of DataService for SQLite database *
@@ -22,7 +21,7 @@ func NewDataServiceSQLite(repo models.DataRepository, locationRepo models.Locati
 func (ds *DataServiceSQLite) CleanOldData(ctx context.Context) error {
 	// SQL deletes rows where measure_time is older than 6 months
 	query := `DELETE FROM data WHERE measure_time < datetime('now', '-6 months');`
-	_, err := ds.repo.(*SQLite.DataRepository).ExecContext(ctx, query)
+	_, err := ds.repo.ExecContext(ctx, query)
 	return err
 }
 func (ds *DataServiceSQLite) Create(data *models.Data, ctx context.Context) error {
@@ -42,10 +41,29 @@ func (ds *DataServiceSQLite) Create(data *models.Data, ctx context.Context) erro
 
 	if err := ds.ValidateData(data); err != nil {
 		return DataError{Message: "Invalid data: " + err.Error()}
-		// There was bug here, now it returns error massage.
-		// Original line : return DataError{Message: "InvalMockDataServiceSuccessfulid data."}
 	}
 	return ds.repo.Create(data, ctx)
+}
+
+func (ds *DataServiceSQLite) CreateLatest(data *models.Data, ctx context.Context) error {
+	// If no room_name provided, set it as current chosen location
+	if data.RoomName == "" {
+		if ds.locationRepo != nil {
+			loc, err := ds.locationRepo.GetChosenLocation(ctx)
+			if err == nil && loc != nil && loc.Name != "" {
+				data.RoomName = loc.Name
+			} else {
+				data.RoomName = "Unknown" // fallback if no chosen location
+			}
+		} else {
+			data.RoomName = "Unknown"
+		}
+	}
+
+	if err := ds.ValidateData(data); err != nil {
+		return DataError{Message: "Invalid data: " + err.Error()}
+	}
+	return ds.repo.CreateLatest(data, ctx)
 }
 
 func (ds *DataServiceSQLite) ReadOne(id int, ctx context.Context) (*models.Data, error) {
@@ -63,6 +81,18 @@ func (ds *DataServiceSQLite) ReadOne(id int, ctx context.Context) (*models.Data,
 
 	// We do something to the data, we deduce something from the data!!!
 	// This guides the operation intelligently, for example, if the data is of a certain type, then we do something
+
+	return data, nil
+}
+
+func (ds *DataServiceSQLite) ReadLatest(id string, ctx context.Context) (*models.Data, error) {
+
+	data, err := ds.repo.ReadLatest(id, ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	_ = data
 
 	return data, nil
 }

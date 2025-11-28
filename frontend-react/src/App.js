@@ -27,7 +27,8 @@ function App() {
 
   // Placeholder state for current noise level
   // ! Need to replace with real data fetching from Arduino later
-  const [currentNoiseLevel, setCurrentNoiseLevel] = useState(25);
+  const [currentNoiseLevel, setCurrentNoiseLevel] = useState(0);
+  const [latestData, setlatestData] = useState(null);
 
   // Stats data state - use sessionStorage for dailyPeak
   const [dailyPeak, setDailyPeak] = useState(() => {
@@ -57,16 +58,15 @@ function App() {
     sessionStorage.setItem('dailyPeak', dailyPeak);
   }, [dailyPeak]);
 
-  // Simulate current noise level updates every few seconds
+  // Gets the latest sound level data every few seconds
   useEffect(() => {
     const interval = setInterval(() => {
-      const randomLevel = Math.floor(Math.random() * 100); // 0-99 dB
-      setCurrentNoiseLevel(randomLevel);
+      getLatestData("arduino_001")
 
       // Update daily peak
       //setDailyPeak(prev => Math.max(prev, randomLevel));
 
-      if (randomLevel > threshold) {
+      if (currentNoiseLevel > threshold) {
         const now = Date.now();
         if (!lastAlertTime || (now - lastAlertTime) >= 180000) {
           const timeString = new Date().toLocaleTimeString('en-US', {
@@ -77,7 +77,7 @@ function App() {
 
           const alert = {
             roomName: chosenLocation?.name || 'Unknown Room',
-            noiseLevel: randomLevel,
+            noiseLevel: currentNoiseLevel,
             threshold: threshold,
             time: timeString,
             timestamp: now
@@ -146,6 +146,17 @@ function App() {
     const interval = setInterval(checkMidnight, 60000);
     return () => clearInterval(interval);
   }, []);
+
+  // Get the latest sound level data
+  const getLatestData = async (deviceID) => {
+    try {
+      const response = await dataAPI.getById(deviceID);
+      setlatestData(response.data);
+      setCurrentNoiseLevel(response.data.sound_level);
+    } catch (error) {
+      console.error('Error fetching latest data: ', error);
+    }
+  }
 
   const loadLocations = async () => {
     let newLocation
