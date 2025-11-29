@@ -33,7 +33,13 @@ func GetLocationsHandler(w http.ResponseWriter, r *http.Request, logger *log.Log
 	})
 }
 
+type LocationResponse struct {
+	Message string      `json:"message"`
+	Data    interface{} `json:"data"`
+}
+
 func GetChosenLocationHandler(w http.ResponseWriter, r *http.Request, logger *log.Logger, svc LocationService) {
+	w.Header().Set("Content-Type", "application/json")
 	location, err := svc.GetChosenLocation()
 	if err != nil {
 		logger.Println("Error getting chosen location:", err)
@@ -47,13 +53,14 @@ func GetChosenLocationHandler(w http.ResponseWriter, r *http.Request, logger *lo
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`{"message": "Location retrieved"}`))
+	resp := LocationResponse{
+		Message: "Location retrieved",
+		Data:    location,
+	}
 
-	if err := json.NewEncoder(w).Encode(location); err != nil {
-		logger.Println("Error encoding location:", err, location)
-		http.Error(w, "Internal server error.", http.StatusInternalServerError)
-		return
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		http.Error(w, "Failed to encode response.", http.StatusInternalServerError)
 	}
 }
 

@@ -34,8 +34,8 @@ func GetByIDHandler(w http.ResponseWriter, r *http.Request, logger *log.Logger, 
 			return
 		}
 
-		logger.Println("Received GET /api/data/{id} from Arduino:")
-		logger.Printf("%+v\n", data)
+		//logger.Println("Received GET /api/data/{id} from Arduino:")
+		//logger.Printf("%+v\n", data)
 
 		w.WriteHeader(http.StatusOK)
 
@@ -59,8 +59,8 @@ func GetByIDHandler(w http.ResponseWriter, r *http.Request, logger *log.Logger, 
 			return
 		}
 
-		logger.Println("Received GET /api/data/{id} from Arduino:")
-		logger.Printf("%+v\n", data)
+		//logger.Println("Received GET /api/data/{id} from Arduino:")
+		//logger.Printf("%+v\n", data)
 
 		w.WriteHeader(http.StatusOK)
 
