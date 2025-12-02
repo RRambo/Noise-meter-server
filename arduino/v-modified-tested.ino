@@ -21,9 +21,9 @@ String base64Encode(String input);
 // ---------------------------------
 
 // ===== Wi-Fi & Server =====
-const char* ssid = "_";   // Used wifi username      
-const char* password = "_";     // Used wifi password
-char server[] = "_._._._";   // Server IP Address    
+const char* ssid = "_";           // Used wifi username
+const char* password = "_";       // Used wifi password
+char server[] = "_._._._";        // Server IP Address
 int port = 8080;
 
 // ===== Device & Room Info =====
@@ -31,9 +31,9 @@ const char* deviceID = "arduino_001";
 
 // ===== Pins & Sensor =====
 const int ledPin = 2;
-const int soundSensorPin = A0;
-int thresholdADC = 0;             // Sound threshold as a raw ADC value (now mutable)
-double threshold = 70;           // Sound threshold (now mutable)
+const int soundSensorPin = A3;
+int thresholdADC = 0;   // Sound threshold as a raw ADC value (now mutable)
+double threshold = 70;  // Sound threshold (now mutable)
 
 WiFiClient wifi;
 HttpClient client = HttpClient(wifi, server, port);
@@ -48,17 +48,28 @@ unsigned long ledOnUntil = 0;
 // ===== Block/hour accumulators =====
 unsigned long blockStartMillis = 0;
 unsigned long lastThresholdFetch = 0;
-const unsigned long thresholdFetchInterval = 60UL * 1000UL; // threshold updated every 1 minute
+const unsigned long thresholdFetchInterval = 10UL * 1000UL;  // threshold updated every 10 seconds
 
 unsigned long lastConstantSent = 0;
-unsigned long checkConstantInterval = 3000; // 3 sec
+unsigned long checkConstantInterval = 3000;  // 3 sec
 
-const unsigned long blockSeconds = 600UL; // --> 10 minutes
+const unsigned long blockSeconds = 60UL;  // --> 10 minutes
 const int blocksPerHour = 6;
 double calibrationFactor = 1.0;
 int currentBlockIndex = 0;
-unsigned long samplesPerBlockEstimate = 0;
 double BlockLeqReg[blocksPerHour];
+
+double complete = 0;
+
+// Exponential time-weighting (EMA) for linear energy
+double emaLinear = 0.0;
+bool emaInitialized = false;
+unsigned long lastSampleMicros = 0;
+double sumEma = 0.0;
+unsigned long emaCount = 0;
+
+// Time constant in seconds (tune: 0.125 fast, 0.5-1.0 moderate, 1.0 slow)
+const double tau = 0.5;
 
 // ===== sustained block peak state =====
 int peakADC = 0;
@@ -69,11 +80,16 @@ const unsigned long sustainMs = 500;  // require 500 ms sustain to accept new pe
 
 // Candidate must exceed current accepted peak by this margin to start.
 // While candidate is active, dips down to (peakADC - peakMargin) are tolerated.
-const int peakMargin = 6; // needs to be tuned while testing
+const int peakMargin = 6;  // needs to be tuned while testing
 
 // ===== regression values =====
-double a = 6.82; // slope (ADC -> dB)
-double b = -30.0; // intercept
+double a = 11.003;   // slope (ADC -> dB)
+double b = 83.2073;  // intercept
+
+// ===== regression values that i calibrated =====
+// Refer to the linked excel file for more information
+// 132.3;   // slope (ADC -> dB)
+// 1.6819;  // intercept
 
 void setup() {
   Serial.begin(9600);
@@ -103,12 +119,22 @@ void loop() {
   // regression-based dB (Leq) accumulators
   unsigned long sampleCount = 0;
   double sumEnergy = 0;
+  double emaLinear = 0;
 
   // reset block peak state
   peakADC = 0;
   peak_dB = 0.0;
   candidateStartMs = 0;
   candidateMaxADC = 0;
+  complete = 0;
+
+  // reset ema accumulators
+  emaLinear = 0.0;
+  emaInitialized = false;
+  sumEma = 0.0;
+  emaCount = 0;
+  lastSampleMicros = 0;
+
 
   // 10 minute block
   while ((unsigned long)(micros() - start) < blockDurationMicros) {
@@ -123,22 +149,49 @@ void loop() {
     int total = 0;
     for (int i = 0; i < numSamples; i++) {
       total += analogRead(soundSensorPin);
-      //Serial.print("Raw ADC: "); Serial.println(analogRead(soundSensorPin));
+      delay(1);
     }
-    int adc = total / numSamples;
-
-    // regression mapping (ensure a != 0)
-    // ^ don't know why this needs to be done, since a and b are hardcoded constants
+    int adc = 0;
+    adc = total / numSamples;
     double L_inst_dB = ((double)adc + b) / a;
 
     //Serial.print("values,   ADC: "); Serial.print(adc); Serial.print(" dB: "); Serial.println(L_inst_dB);
 
     // Accumulate energy for calculating the average (Leq)
+    unsigned long nowMicros = micros();
+    double dt = 0.02;  // default dt in seconds if first sample (safe fallback)
+    if (lastSampleMicros != 0) {
+      dt = (nowMicros - lastSampleMicros) / 1e6;
+    }
+    lastSampleMicros = nowMicros;
+
+    // instantaneous linear energy
+    double instLinear = pow(10.0, L_inst_dB / 10.0);
+
+    // compute alpha for EMA: alpha = exp(-dt/tau)
+    double alpha = exp(-dt / tau);
+
+    // update EMA (initialize on first sample)
+    if (!emaInitialized) {
+      emaLinear = instLinear;
+      emaInitialized = true;
+    } else {
+      emaLinear = alpha * emaLinear + (1.0 - alpha) * instLinear;
+    }
+
+    // accumulate EMA values for block-average Leq
+    sumEma += emaLinear;
+    emaCount++;
+
+    /*
     sumEnergy += pow(10.0, L_inst_dB / 10.0);
     sampleCount++;
+    */
+
+    complete += adc;
 
     // === Sustained peak detection ===
-    // For getting the highest peak within the 10 minute block
+    // For getting the highest peak within the block
     // Start only if adc > peakADC + peakMargin to avoid unnatural noise
     if (adc > peakADC + peakMargin) {
       if (candidateStartMs == 0) {
@@ -167,46 +220,58 @@ void loop() {
         candidateMaxADC = 0;
       }
     }
-
+    /*
     // === LED logic ===
-    if (candidateMaxADC > thresholdADC) {
+    if (adc > thresholdADC) {
       if (millis() > ledOnUntil) {
         ledOnUntil = millis() + 300UL; // Minimum ON for short spike
       }
     }
-    digitalWrite(ledPin, (millis() < ledOnUntil) ? HIGH : LOW);
-    delay(10); // for reducing CPU load
+    digitalWrite(ledPin, (millis() < ledOnUntil) ? HIGH : LOW);*/
+    delay(10);  // for reducing CPU load
     // Sending data every 3 seconds for current sound level card
     // No need to explicitlty send data to server whenever threshold is reached
     if (millis() - lastConstantSent >= checkConstantInterval || lastConstantSent == 0) {
       sendData(deviceID, L_inst_dB, threshold, "latest measurement", false);
       lastConstantSent = millis();
     }
-  } // end 10 minute block sampling
-
-  samplesPerBlockEstimate = sampleCount;
+  }  // end 10 minute block sampling
 
   // === Regression-based block Leq ===
-  double blockLeqReg_dB = 0;
-  if (sampleCount > 0) {
-    double avgLinear = sumEnergy / (double)sampleCount;
-    Serial.println();
-    Serial.print("Block average (linear): "); Serial.println(avgLinear, 2);
+  double blockLeqReg_dB = 0.0;
+  if (emaCount > 0) {
+    double avgLinear = sumEma / (double)emaCount;
     if (avgLinear <= 0.0) avgLinear = 1e-20;
     blockLeqReg_dB = 10.0 * log10(avgLinear);
   }
+
+  /*
+  if (sampleCount > 0) {
+    double avgLinear = sumEnergy / (double)sampleCount;
+    if (avgLinear <= 0.0) avgLinear = 1e-20;
+    blockLeqReg_dB = 10.0 * log10(avgLinear);
+  }
+  */
   Serial.println();
-  Serial.print("Block average (regression): "); Serial.println(blockLeqReg_dB, 2);
+  Serial.print("Block average: ");
+  Serial.println(blockLeqReg_dB, 2);
 
   // === Peak ===
-  Serial.print("Block peak (sustained >= "); Serial.print(sustainMs);
-  Serial.print(" ms, margin "); Serial.print(peakMargin);
-  Serial.print(" ADC) dB: "); Serial.println(peak_dB, 2);
+  Serial.print("Block peak (sustained >= ");
+  Serial.print(sustainMs);
+  Serial.print(" ms, margin ");
+  Serial.print(peakMargin);
+  Serial.print(" ADC) dB: ");
+  Serial.println(peak_dB, 2);
+  Serial.print(" adc average: ");
+  Serial.println(complete / emaCount);
+
 
   if (currentBlockIndex < blocksPerHour) BlockLeqReg[currentBlockIndex] = blockLeqReg_dB;
 
   // For logging the average / hour using BlockLeq
   // Doesn't get sent yet
+  /*
   if (currentBlockIndex >= blocksPerHour) {
     // Hourly average using regression-based block values
     double sumLinearReg = 0.0;
@@ -223,12 +288,9 @@ void loop() {
     }
 
     currentBlockIndex = 0;
-  }
+  }*/
 
-  delay(10);
-
-  // === Send block data (10 minutes) to server ===
-  // regression data for now. The data should be compared
+  // === Send block data to the server ===
   sendData(deviceID, blockLeqReg_dB, threshold, "An average of measurements in a " + String(blockSeconds / 60) + " minute block", true);
   sendData(deviceID, peak_dB, threshold, "A peak of measurements in a " + String(blockSeconds / 60) + " minute block", true);
 }
@@ -275,10 +337,12 @@ void fetchThreshold() {
 
   int status = client.responseStatusCode();
   String body = client.responseBody();
-  //Serial.print("Threshold fetch status: ");
-  //Serial.println(status);
-  //Serial.print("Body: ");
-  //Serial.println(body);
+  /*
+  Serial.print("Threshold fetch status: ");
+  Serial.println(status);
+  Serial.print("Body: ");
+  Serial.println(body);
+  */
   if (status == 200 && body.length() > 0) {
     // json object capacity estimated to be small so 512 bytes should be enough
     StaticJsonDocument<512> doc;
@@ -288,7 +352,7 @@ void fetchThreshold() {
       float t = v.as<float>();
       Serial.print("Current threshold: ");
       Serial.println(t);
-      thresholdADC = round(a * t - b); // convert the threshold into ADC for comparison
+      thresholdADC = round(a * t - b);  // convert the threshold into ADC for comparison
       threshold = t;
     } else {
       Serial.print("JSON parse error: ");
