@@ -447,8 +447,9 @@ function NoiseAnalytics({ roomName, allLocations, getDailySummary, setDailyPeak 
                 {/* Planning Tip */}
                 <div className="planning-tip">
                     <strong>💡 Planning Tip:</strong> {activeTab === 'daily'
-                        ? 'Schedule quiet activities (story time, nap time) during naturally quieter periods (8:00-9:00, 12:00-13:00) and active play during peak energy times (10:00-11:00).'
-                        : 'Wednesday shows the longest quiet periods and lowest average noise - ideal for introducing new concepts or activities requiring focus. Friday has higher energy levels - perfect for group activities and celebrations.'}
+                        ? 'Schedule quiet activities (story time, nap time) during naturally quieter periods and active play during peak energy times.'
+                        : 'The day showing the longest quiet periods and lowest average noise usually is ideal for introducing new concepts or activities requiring focus. The day with higher energy levels is perfect for group activities and celebrations.'}
+                         {/* put template tips here */}
                 </div>
             </div>
         </div>
