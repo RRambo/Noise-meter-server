@@ -11,7 +11,6 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import './styles/App.css';
 
 function App() {
-
   // State for locations
   const [locations, setLocations] = useState([]);
   const [chosenLocation, setChosenLocation] = useState(null);
@@ -19,10 +18,7 @@ function App() {
   const [loading, setLoading] = useState(true);
 
   // State for settings - read value from localStorage
-  const [threshold, setThreshold] = useState(() => {
-    const savedThreshold = localStorage.getItem('noiseThreshold');
-    return savedThreshold ? parseInt(savedThreshold) : 75;
-  });
+  const [threshold, setThreshold] = useState(75);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   // Placeholder state for current noise level
@@ -35,7 +31,10 @@ function App() {
     const saved = sessionStorage.getItem('dailyPeak');
     return saved ? parseInt(saved) : 0;
   });
-  const [weeklyAverage, setWeeklyAverage] = useState(63);
+  const [weeklyAverage, setWeeklyAverage] = useState(() => {
+    const saved = sessionStorage.getItem('weeklyAverage');
+    return saved ? parseInt(saved) : 0;
+  });
 
   // Alert state
   const [currentAlert, setCurrentAlert] = useState(null);
@@ -53,14 +52,17 @@ function App() {
   });
   const [lastAlertTime, setLastAlertTime] = useState(null);
 
-  // Save dailyPeak to sessionStorage 
+  // Save dailyPeak and weeklyAverage to sessionStorage 
   useEffect(() => {
     sessionStorage.setItem('dailyPeak', dailyPeak);
-  }, [dailyPeak]);
+    sessionStorage.setItem('weeklyAverage', weeklyAverage);
+  }, [dailyPeak], [weeklyAverage]);
 
   // Gets the latest sound level data every few seconds
   useEffect(() => {
     const interval = setInterval(() => {
+      // Device id currently hardcoded here
+      // In a future implementation, should be configurable
       getLatestData("arduino_001")
 
       // Update daily peak
@@ -94,34 +96,10 @@ function App() {
     return () => clearInterval(interval);
   }, [threshold, lastAlertTime, chosenLocation]);
 
-  // Simulate noise level updates every few seconds (for testing)
-  useEffect(() => {
-    const interval = setInterval(() => {
-      // Simulate weekly avarage change every 10 seconds
-      setWeeklyAverage(prev => {
-        const change = Math.floor(Math.random() * 5) - 2; // -2 to +2
-        const newValue = prev + change;
-        return Math.max(50, Math.min(80, newValue)); // 50-80 dB range
-      });
-    }, 10000); // Update every 10 seconds
-
-    return () => clearInterval(interval);
-  }, []);
-
-  // Load stats for the chosen location
-  useEffect(() => {
-    loadStats();
-  }, [chosenLocation]);
-
   // Load locations on mount
   useEffect(() => {
     loadLocations();
   }, []);
-
-  // Save threshold to localStorage when it changes
-  useEffect(() => {
-    localStorage.setItem('noiseThreshold', threshold);
-  }, [threshold]);
 
   // Save alert history to sessionStorage
   useEffect(() => {
@@ -170,6 +148,7 @@ function App() {
       const chosen = locationData.find(loc => loc.chosen);
       newLocation = chosen
       setChosenLocation(chosen);
+      setThreshold(chosen.threshold);
     } catch (error) {
       console.error('Error loading locations:', error);
     } finally {
@@ -186,39 +165,16 @@ function App() {
     }
   };
 
-  const loadStats = async () => {
-    if (!chosenLocation) return;
-
+  const getWeeklySummary = async (room) => {
     try { 
-      // Daily peak statCard is updated in the NoiseAnalytics component, whenever chartData is generated.
-      // As i understood it, this only get's called whenever chosen location is changed
-      // and the generateChartData is also called then, so no need to do it again here.
-
-      // Still needs functionality for getting actual weekly average
+      // Daily peak statCard is updated in the NoiseAnalytics component, whenever daily chartData is generated.      
 
       // Try to get real data from API
-      const response = await dataAPI.getAll();
-      const resData = response.data || [];
-
-      // Filter data for hours between 8 and 17
-      const roomData = resData.filter((d) => {
-        const hour = new Date(d.measure_time).getHours();
-        return hour >= 8 && hour <= 17 && d.room_name === chosenLocation.name;
-      });
-
-      if (roomData.length > 0) {
-        // Calculate daily peak and weekly average
-        const levels = roomData.map(d => d.sound_level);
-        //const peak = Math.max(...levels);
-        const average = Math.round(levels.reduce((a, b) => a + b, 0) / levels.length);
-
-        //setDailyPeak(prev => Math.max(prev, peak));
-        setWeeklyAverage(average);
-      }
+      const response = await dataAPI.getByRoom(room);
+      return response.data || [];
     }
     catch (error) {
       console.error('Error loading stats:', error);
-      // // Fallback to simulated data
     }
   };
 
@@ -373,6 +329,9 @@ function App() {
           allLocations={locations}
           getDailySummary={getDailySummary}
           setDailyPeak={setDailyPeak}
+          getWeeklySummary={getWeeklySummary}
+          setWeeklyAverage={setWeeklyAverage}
+          chosenThreshold={threshold}
         />
       </div>
     </div>

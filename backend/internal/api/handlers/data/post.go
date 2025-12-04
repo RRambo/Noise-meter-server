@@ -35,18 +35,6 @@ func PostHandler(w http.ResponseWriter, r *http.Request, logger *log.Logger, ds 
 		data.Threshold = 70 // default threshold
 	}
 
-	// Fill missing sound fields
-	// Data currently not saved to DB, since it has no fields for these
-	if data.CurrentSoundLevel == 0 {
-		data.CurrentSoundLevel = data.SoundLevel
-	}
-	if data.SoundLevel == 0 {
-		data.SoundLevel = data.CurrentSoundLevel
-	}
-	if data.AverageSoundLevel == 0 {
-		data.AverageSoundLevel = data.CurrentSoundLevel
-	}
-
 	logger.Println("Received POST /api/data from Arduino:")
 	logger.Printf("%+v\n", data)
 

@@ -146,3 +146,12 @@ func (ds *DataServiceSQLite) GetDailySummary(roomName string, date time.Time, ct
 	// Get data for the specified room and date
 	return ds.repo.GetDailySummary(roomName, date, ctx)
 }
+
+func (ds *DataServiceSQLite) GetByRoom(roomName string, ctx context.Context) ([]*models.Data, error) {
+	if roomName == "" {
+		return nil, DataError{Message: "Room name is required"}
+	}
+
+	// Get data for the specified room
+	return ds.repo.GetByRoom(roomName, ctx)
+}

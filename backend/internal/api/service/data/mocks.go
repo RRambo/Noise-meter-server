@@ -88,6 +88,20 @@ func (m *MockDataServiceSuccessful) GetDailySummary(room string, date time.Time,
 		},
 	}, nil
 }
+func (m *MockDataServiceSuccessful) GetByRoom(room string, ctx context.Context) ([]*models.Data, error) {
+	return []*models.Data{
+		{
+			ID:          1,
+			DeviceID:    "arduino_mock",
+			RoomName:    room,
+			SoundLevel:  60.0,
+			Threshold:   70.0,
+			MeasureTime: time.Now().Format(time.RFC3339),
+			IsAlert:     false,
+			Description: "weekly summary mock",
+		},
+	}, nil
+}
 func (m *MockDataServiceSuccessful) CleanOldData(ctx context.Context) error {
 	return nil
 }
@@ -122,6 +136,9 @@ func (m *MockDataServiceError) ValidateData(d *models.Data) error {
 func (m *MockDataServiceError) GetDailySummary(room string, date time.Time, ctx context.Context) ([]*models.Data, error) {
 	return nil, &DataError{Message: "Error fetching daily summary."}
 }
+func (m *MockDataServiceError) GetByRoom(room string, ctx context.Context) ([]*models.Data, error) {
+	return nil, &DataError{Message: "Error fetching weekly summary."}
+}
 func (m *MockDataServiceError) CleanOldData(ctx context.Context) error {
 	return &DataError{Message: "Error cleaning old data."}
 }
@@ -154,6 +171,9 @@ func (m *MockDataServiceNotFound) ValidateData(d *models.Data) error {
 	return &DataError{Message: "Resource not found."}
 }
 func (m *MockDataServiceNotFound) GetDailySummary(room string, date time.Time, ctx context.Context) ([]*models.Data, error) {
+	return nil, &DataError{Message: "Resource not found."}
+}
+func (m *MockDataServiceNotFound) GetByRoom(room string, ctx context.Context) ([]*models.Data, error) {
 	return nil, &DataError{Message: "Resource not found."}
 }
 func (m *MockDataServiceNotFound) CleanOldData(ctx context.Context) error {

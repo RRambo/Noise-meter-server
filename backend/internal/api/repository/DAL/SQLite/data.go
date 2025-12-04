@@ -349,8 +349,14 @@ func (r *DataRepository) Delete(data *models.Data, ctx context.Context) (int64, 
 }
 
 func (r *DataRepository) GetByRoom(roomName string, ctx context.Context) ([]*models.Data, error) {
-	// Example implementation
-	rows, err := r.sqlDB.QueryContext(ctx, `SELECT id, device_id, room_name, sound_level, threshold, measure_time, is_alert, description FROM data WHERE room_name = ?`, roomName)
+	// calculate the last 5 weeks
+	startTime := time.Now().AddDate(0, 0, -35) // 35 days = 5 weeks
+
+	rows, err := r.sqlDB.QueryContext(ctx, `
+		SELECT id, device_id, room_name, sound_level, threshold, measure_time, is_alert, description 
+		FROM data 
+		WHERE room_name = ? AND measure_time >= ?`,
+		roomName, startTime.Format(time.RFC3339))
 	if err != nil {
 		return nil, err
 	}

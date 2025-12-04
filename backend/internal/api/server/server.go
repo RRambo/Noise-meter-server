@@ -124,6 +124,10 @@ func setupDataHandlers(mux *http.ServeMux, sf *service.ServiceFactory, logger *l
 		}
 	})
 
+	mux.HandleFunc("GET /data/weekly/{room}", func(w http.ResponseWriter, r *http.Request) {
+		data.GetByRoomHandler(w, r, logger, ds)
+	})
+
 	mux.HandleFunc("/data/daily/{room}", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:

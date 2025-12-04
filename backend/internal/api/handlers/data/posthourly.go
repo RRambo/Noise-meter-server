@@ -30,17 +30,6 @@ func PostHourlyHandler(w http.ResponseWriter, r *http.Request, logger *log.Logge
 		data.DeviceID = "arduino_001"
 	}
 
-	// Fill defaults for sound fields if missing
-	if data.CurrentSoundLevel == 0 {
-		data.CurrentSoundLevel = data.AverageSoundLevel
-	}
-	if data.AverageSoundLevel == 0 {
-		data.AverageSoundLevel = data.HourlyAverageSoundLevel
-	}
-	if data.HourlyAverageSoundLevel == 0 {
-		data.HourlyAverageSoundLevel = data.AverageSoundLevel
-	}
-
 	logger.Println("Received hourly POST /data/hourly from Arduino:")
 	logger.Printf("%+v\n", data)
 

@@ -16,6 +16,7 @@ type DataService interface {
 	Delete(data *models.Data, ctx context.Context) (int64, error)
 	ValidateData(data *models.Data) error
 	GetDailySummary(roomName string, date time.Time, ctx context.Context) ([]*models.Data, error)
+	GetByRoom(roomName string, ctx context.Context) ([]*models.Data, error)
 	CleanOldData(ctx context.Context) error
 }
 

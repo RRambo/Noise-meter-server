@@ -1,7 +1,8 @@
 import React from "react";
 import "../styles/ChartEmptyState.css";
 
-export default function ChartEmptyState({ onRetry, chosenDate }) {
+export default function ChartEmptyState({ onRetry, chosenLabel, mode = "daily" }) {
+  // mode "day" or "weekly"
   return (
     <div id="chart-empty-state" className="ces-root" role="status" aria-live="polite">
       <svg
@@ -41,15 +42,19 @@ export default function ChartEmptyState({ onRetry, chosenDate }) {
       </svg>
 
       <div className="ces-text">
-        <h2 className="ces-title">No data found for chosen day</h2>
+        <h2 className="ces-title">
+          {mode === "weekly" ? "No data found for the chosen week" : "No data found for chosen day"}
+        </h2>
 
         <p className="ces-body">
-          {chosenDate ? (
+          {chosenLabel ? (
             <>
-              We couldn't find any measurements for <strong className="ces-highlight">{chosenDate}</strong>.
+              We couldn't find any measurements for <strong className="ces-highlight">{chosenLabel}</strong>.
             </>
           ) : (
-            "We couldn't find any measurements for the selected day."
+            mode === "weekly"
+              ? "We couldn't find any measurements for the selected week."
+              : "We couldn't find any measurements for the selected day."
           )}
         </p>
 
@@ -74,7 +79,7 @@ export default function ChartEmptyState({ onRetry, chosenDate }) {
         </div>
 
         <small className="ces-hint">
-          Tip: try a different date or check that your device was connected that day.
+          Tip: try a different {mode === "weekly" ? "week" : "date"} or check that your device was connected that {mode === "weekly" ? "week" : "day"}.
         </small>
       </div>
     </div>

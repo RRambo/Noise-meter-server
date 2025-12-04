@@ -3,8 +3,8 @@ import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, L
 import '../styles/NoiseAnalytics.css';
 import ChartEmptyState from './ChartEmptyState';
 
-function NoiseAnalytics({ roomName, allLocations, getDailySummary, setDailyPeak }) {
-    const [activeTab, setActiveTab] = useState('daily');
+function NoiseAnalytics({ roomName, allLocations, getDailySummary, setDailyPeak, getWeeklySummary, setWeeklyAverage, chosenThreshold }) {
+    const [activeTab, setActiveTab] = useState('firstRender');
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [selectedRoom, setSelectedRoom] = useState(roomName);
     const [weekOffset, setWeekOffset] = useState(0);
@@ -64,36 +64,66 @@ function NoiseAnalytics({ roomName, allLocations, getDailySummary, setDailyPeak 
 
     const generateChartData = async () => {
         // kinda laggy but works :/
-        // get data from a specific room with measure_time during a specific day
-        // (specific day = today on first page render)
-        const dailyData = await getDailySummary(selectedRoom, selectedDate) || []
+        if (activeTab === 'firstRender') {
+            // get weekly data of the last 5 weeks from a specific room.
+            const weeklyData = await getWeeklySummary(selectedRoom) || []
 
-        // Check if there are data within the hours of 8 and 17
-        const hasDataInWindow = dailyData.some(e => {
-            const h = new Date(e.measure_time).getHours();
-            return h >= 8 && h <= 17;
-        });
+            // Filter data for hours between 8 and 17
+            const filteredWeeklyData = weeklyData.filter((d) => {
+                const hour = new Date(d.measure_time).getHours();
+                return hour >= 8 && hour <= 17;
+            });
 
-        // check if selectedDate is today
-        let isToday = false;
-        const currentTime = new Date();
+            // variables for gettign data for the weekly average statCard
+            const now = new Date();
+            const dayOfWeek = now.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+            const monday = new Date(now);
+            monday.setDate(now.getDate() - ((dayOfWeek + 6) % 7)); // Get Monday of this week
+            monday.setHours(0, 0, 0, 0); // Set to midnight
 
-        if (selectedDate.getFullYear() === currentTime.getFullYear() &&
-            selectedDate.getMonth() === currentTime.getMonth() &&
-            selectedDate.getDate() === currentTime.getDate()
-        ) isToday = true;
+            // Get data for the weekly average
+            const averageData = filteredWeeklyData.filter((d) => {
+                const measureDate = new Date(d.measure_time);
+                return measureDate >= monday && measureDate <= now;
+            });
 
-        // if there is no data between 8 and 17, exit with no chartData
-        if (!hasDataInWindow) {
-            setChartData([])
-            if (isToday) {
-                setDailyPeak('-');
-                console.warn(`No data for daily peak statCard`)
+            if (averageData.length > 0) {
+                // Calculate and set weekly average statCard
+                const levels = averageData.map(d => d.sound_level);
+                const average = Math.round(levels.reduce((a, b) => a + b, 0) / levels.length);
+                setWeeklyAverage(average);
             }
-            return;
+            setActiveTab('daily');
         }
 
-        if (activeTab === 'daily') {
+        if (activeTab === 'daily' || activeTab === 'firstRender') {
+            // get data from a specific room with measure_time during a specific day
+            // (specific day = today on first page render)
+            const dailyData = await getDailySummary(selectedRoom, selectedDate) || []
+            // Check if there are data within the hours of 8 and 17
+            const hasDataInWindow = dailyData.some(e => {
+                const h = new Date(e.measure_time).getHours();
+                return h >= 8 && h <= 17;
+            });
+
+            // check if selectedDate is today
+            let isToday = false;
+            const currentTime = new Date();
+
+            if (selectedDate.getFullYear() === currentTime.getFullYear() &&
+                selectedDate.getMonth() === currentTime.getMonth() &&
+                selectedDate.getDate() === currentTime.getDate()
+            ) isToday = true;
+
+            // if there is no data between 8 and 17, exit with no chartData
+            if (!hasDataInWindow) {
+                setChartData([])
+                if (isToday) {
+                    setDailyPeak('-');
+                    console.warn(`No data for daily peak statCard`)
+                }
+                return;
+            }
             // if requested date is today, 
             // get the peak for the daily peak StatCard as well
             let highestPeak = 0;
@@ -142,22 +172,96 @@ function NoiseAnalytics({ roomName, allLocations, getDailySummary, setDailyPeak 
             setDailyPeak(highestPeak)
             setChartData(data);
         } else {
-            // Generate weekly bar chart data
+            // get weekly data of the last 5 weeks from a specific room.
+            const weeklyData = await getWeeklySummary(selectedRoom) || []
+
+            // Filter data for hours between 8 and 17
+            const filteredWeeklyData = weeklyData.filter((d) => {
+                const hour = new Date(d.measure_time).getHours();
+                return hour >= 8 && hour <= 17;
+            });
+
+            if (filteredWeeklyData.length === 0) {
+                setChartData([])
+                return;
+            }
+
+            // Buckets for generating weekly bar chart data
             const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+            const dayBuckets = Object.fromEntries(days.map(day => [day, []]));
+
+            // variables for gettign data for the weekly average statCard
+            const now = new Date();
+            const dayOfWeek = now.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+            const monday = new Date(now);
+            monday.setDate(now.getDate() - ((dayOfWeek + 6) % 7)); // Get Monday of this week
+            monday.setHours(0, 0, 0, 0); // Set to midnight
+
+            // variables for generating chart data
+            const chartMonday = new Date(now);
+            chartMonday.setDate(now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1) + (weekOffset * 7));
+            chartMonday.setHours(0, 0, 0, 0);
+
+            const chartFriday = new Date(chartMonday);
+            chartFriday.setDate(chartMonday.getDate() + 4);
+            chartFriday.setHours(23, 59, 59, 999);
+
+            // Get data for the current week
+            // And group data by weekday accounting for weekOffset
+            const averageData = filteredWeeklyData.filter((d) => {
+                const measureDate = new Date(d.measure_time);
+                // for the chart data
+                if (measureDate >= chartMonday && measureDate <= chartFriday) {
+                    const weekdayIndex = measureDate.getDay();
+                    if (weekdayIndex >= 1 && weekdayIndex <= 5) {
+                        const weekday = days[weekdayIndex - 1];
+                        dayBuckets[weekday].push(d.sound_level);
+                    }
+                }
+                // for the weekly average statCard
+                return measureDate >= monday && measureDate <= now;
+            });
+
+            if (averageData.length > 0) {
+                // Calculate and set weekly average statCard
+                const levels = averageData.map(d => d.sound_level);
+                const average = Math.round(levels.reduce((a, b) => a + b, 0) / levels.length);
+                setWeeklyAverage(average);
+            }
+
+            const isWeekEmpty = Object.values(dayBuckets).every(levels => levels.length === 0);
+
+            if (isWeekEmpty) {
+                setChartData([])
+                return;
+            }
+
+            // Continue to generate chart data
+            // Calculate average and peak for each day
             const data = days.map(day => {
-                const avgNoise = Math.round(50 + Math.random() * 25);
-                const peakNoise = Math.round(avgNoise + 15 + Math.random() * 20);
+                const levels = dayBuckets[day];
+                const avgNoise = levels.length > 0 ? Math.round(levels.reduce((a, b) => a + b, 0) / levels.length) : null;
+                const peakNoise = levels.length > 0 ? Math.max(...levels) : null;
                 return {
                     day: day,
-                    avgNoise: avgNoise,
-                    peakNoise: peakNoise
+                    avgNoise,
+                    peakNoise
                 };
             });
             setChartData(data);
 
             // Generate quiet time duration data
+            // Calculates the quiet time based on the amount of measurements below 70 % of the threshold
+            // Currently assumes that measurements are taken every 10 minutes
+            const QUIET_THRESHOLD = chosenThreshold * 0.7; // If threshold = 75, QUIET_THRESHOLD = 52.5
+            const MEASUREMENT_INTERVAL_MINUTES = 10; // If each measurement is every 10 minutes
+
             const quietData = days.map(day => {
-                const duration = Math.round(240 - Math.random() * 120);
+                const levels = dayBuckets[day];
+                // Count how many measurements are below the quiet threshold
+                const quietCount = levels.filter(level => level < QUIET_THRESHOLD).length;
+                // Calculate total quiet minutes
+                const duration = Math.round(quietCount * MEASUREMENT_INTERVAL_MINUTES);
                 return {
                     day: day,
                     duration: duration
@@ -165,7 +269,6 @@ function NoiseAnalytics({ roomName, allLocations, getDailySummary, setDailyPeak 
             });
             setQuietTimeData(quietData);
         }
-
     };
 
     const getWeekDateRange = () => {
@@ -193,9 +296,6 @@ function NoiseAnalytics({ roomName, allLocations, getDailySummary, setDailyPeak 
 
     const canGoBack = weekOffset > -4;
     const canGoForward = weekOffset < 0;
-
-    // currently unused
-    //const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 
     return (
         <div className="noise-analytics-card card">
@@ -231,7 +331,7 @@ function NoiseAnalytics({ roomName, allLocations, getDailySummary, setDailyPeak 
                 {/* Tab Buttons */}
                 <div className="tab-buttons">
                     <button
-                        className={`tab-btn ${activeTab === 'daily' ? 'active' : ''}`}
+                        className={`tab-btn ${activeTab === 'daily' || activeTab === 'firstRender' ? 'active' : ''}`}
                         onClick={() => setActiveTab('daily')}
                     >
                         Daily Analysis
@@ -245,7 +345,7 @@ function NoiseAnalytics({ roomName, allLocations, getDailySummary, setDailyPeak 
                 </div>
 
                 {/* Selectors */}
-                {activeTab === 'daily' ? (
+                {activeTab === 'daily' || activeTab === 'firstRender' ? (
                     <div className="selectors">
                         <div className="selector-item">
                             <label>Date</label>
@@ -298,10 +398,14 @@ function NoiseAnalytics({ roomName, allLocations, getDailySummary, setDailyPeak 
 
                 {/* Chart */}
                 <div className="chart-container">
-                    {activeTab === 'daily' ? (
+                    {activeTab === 'daily' || activeTab === 'firstRender' ? (
                         chartData.length === 0 ? (
                             // Overkill of an empty chart state XD
-                            <ChartEmptyState chosenDate={selectedDate.toLocaleDateString()} onRetry={() => handleDateChange(new Date(selectedDate))} />
+                            <ChartEmptyState
+                                chosenLabel={selectedDate.toLocaleDateString()}
+                                mode="daily"
+                                onRetry={() => handleDateChange(new Date(selectedDate))}
+                            />
                         ) : (
                             <ResponsiveContainer width="100%" height={300}>
                                 <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
@@ -351,11 +455,14 @@ function NoiseAnalytics({ roomName, allLocations, getDailySummary, setDailyPeak 
                                 </AreaChart>
                             </ResponsiveContainer>
                         )
-
                     ) : (
                         chartData.length === 0 ? (
                             // Overkill of an empty chart state XD
-                            <ChartEmptyState chosenDate={selectedDate.toLocaleDateString()} onRetry={() => handleDateChange(new Date(selectedDate))} />
+                            <ChartEmptyState
+                                chosenLabel={getWeekDateRange()}
+                                mode={"weekly"}
+                                onRetry={() => generateChartData()}
+                            />
                         ) : (
                             <>
                                 <ResponsiveContainer width="100%" height={300}>
@@ -443,13 +550,25 @@ function NoiseAnalytics({ roomName, allLocations, getDailySummary, setDailyPeak 
                         </div>
                     </div>
                 )}
+                {activeTab === 'firstRender' && (
+                    <div className="chart-legend">
+                        <div className="legend-item">
+                            <span className="legend-line solid"></span>
+                            <span>Average Level</span>
+                        </div>
+                        <div className="legend-item">
+                            <span className="legend-line dashed"></span>
+                            <span>Peak Level</span>
+                        </div>
+                    </div>
+                )}
 
                 {/* Planning Tip */}
                 <div className="planning-tip">
                     <strong>💡 Planning Tip:</strong> {activeTab === 'daily'
                         ? 'Schedule quiet activities (story time, nap time) during naturally quieter periods and active play during peak energy times.'
                         : 'The day showing the longest quiet periods and lowest average noise usually is ideal for introducing new concepts or activities requiring focus. The day with higher energy levels is perfect for group activities and celebrations.'}
-                         {/* put template tips here */}
+                    {/* put template tips here */}
                 </div>
             </div>
         </div>
