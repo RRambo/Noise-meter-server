@@ -282,14 +282,6 @@ netstat -ano | findstr :8080
 taskkill /PID  /F
 ```
 
-### Current Data Source
-
-**Note:** The frontend currently uses **simulated data** for demonstration purposes. The real-time noise meter generates random values, and the charts display sample patterns. To connect real Arduino sensor data:
-
-1. Modify the noise simulation logic in `App.js`
-2. Replace simulated values with actual sensor readings from the backend API
-3. Implement WebSocket connection for true real-time updates (future enhancement)
-
 ## Project Structure
 
 ```
