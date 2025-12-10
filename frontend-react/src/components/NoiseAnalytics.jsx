@@ -3,7 +3,7 @@ import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, L
 import '../styles/NoiseAnalytics.css';
 import ChartEmptyState from './ChartEmptyState';
 
-function NoiseAnalytics({ roomName, allLocations, getDailySummary, setDailyPeak, getWeeklySummary, setWeeklyAverage, chosenThreshold }) {
+function NoiseAnalytics({ roomName, allLocations, getDailySummary, setDailyPeak, getWeeklySummary, setWeeklyAverage }) {
     const [activeTab, setActiveTab] = useState('firstRender');
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [selectedRoom, setSelectedRoom] = useState(roomName);
@@ -71,7 +71,7 @@ function NoiseAnalytics({ roomName, allLocations, getDailySummary, setDailyPeak,
             // Filter data for hours between 8 and 17
             const filteredWeeklyData = weeklyData.filter((d) => {
                 const hour = new Date(d.measure_time).getHours();
-                return hour >= 8 && hour <= 17;
+                return hour >= 6 && hour <= 17;
             });
 
             // variables for gettign data for the weekly average statCard
@@ -103,7 +103,7 @@ function NoiseAnalytics({ roomName, allLocations, getDailySummary, setDailyPeak,
             // Check if there are data within the hours of 8 and 17
             const hasDataInWindow = dailyData.some(e => {
                 const h = new Date(e.measure_time).getHours();
-                return h >= 8 && h <= 17;
+                return h >= 6 && h <= 17;
             });
 
             // check if selectedDate is today
@@ -131,8 +131,29 @@ function NoiseAnalytics({ roomName, allLocations, getDailySummary, setDailyPeak,
             // calculates the average and looks for the peaks
             // Works while we wait for the hourly data implementation
 
-            // Simulate daily data (8:00-17:00)
-            const hours = Array.from({ length: 10 }, (_, i) => 8 + i);
+            // set daily data (6:00-17:00)
+
+            // Original implementation with fixed hours 8-17
+            //const hours = Array.from({ length: 10 }, (_, i) => 8 + i);
+
+            // Now dynamically removes hours with no data from the beginning and end of the chart
+            // Find min and max hour in the data (between 6 and 17)
+            const hourValues = dailyData
+                .map(e => {
+                    const match = e.measure_time.match(/T(\d{1,2}):/);
+                    return match ? Number(match[1]) : null;
+                })
+                .filter(h => h !== null && h >= 6 && h <= 17);
+
+            const minHour = Math.min(...hourValues);
+            const maxHour = Math.max(...hourValues);
+
+            // Generate a continuous range of hours
+            const hours = [];
+            for (let h = minHour; h <= maxHour; h++) {
+                hours.push(h);
+            }
+            
             // buckets for data within each hour
             const buckets = Object.fromEntries(hours.map(h => [h, { count: 0, sum: 0, max: null }]));
             const data = [];
@@ -178,7 +199,7 @@ function NoiseAnalytics({ roomName, allLocations, getDailySummary, setDailyPeak,
             // Filter data for hours between 8 and 17
             const filteredWeeklyData = weeklyData.filter((d) => {
                 const hour = new Date(d.measure_time).getHours();
-                return hour >= 8 && hour <= 17;
+                return hour >= 6 && hour <= 17;
             });
 
             if (filteredWeeklyData.length === 0) {
@@ -253,13 +274,13 @@ function NoiseAnalytics({ roomName, allLocations, getDailySummary, setDailyPeak,
             // Generate quiet time duration data
             // Calculates the quiet time based on the amount of measurements below 70 % of the threshold
             // Currently assumes that measurements are taken every 10 minutes
-            const QUIET_THRESHOLD = chosenThreshold * 0.7; // If threshold = 75, QUIET_THRESHOLD = 52.5
+            //const QUIET_THRESHOLD = chosenThreshold * 0.7; // If threshold = 75, QUIET_THRESHOLD = 52.5
             const MEASUREMENT_INTERVAL_MINUTES = 10; // If each measurement is every 10 minutes
 
             const quietData = days.map(day => {
                 const levels = dayBuckets[day];
-                // Count how many measurements are below the quiet threshold
-                const quietCount = levels.filter(level => level < QUIET_THRESHOLD).length;
+                // Count how many measurements are below the quiet threshold (60 dB)
+                const quietCount = levels.filter(level => level < 60).length;
                 // Calculate total quiet minutes
                 const duration = Math.round(quietCount * MEASUREMENT_INTERVAL_MINUTES);
                 return {

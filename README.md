@@ -1,6 +1,6 @@
 # Kindergarten Sound Meter
 
-This system supports an IoT device (Arduino with sound sensor) that measures noise levels in kindergarten rooms. When sound exceeds a threshold, data is sent to the server for logging and analysis.
+This system supports an IoT device (Arduino with sound sensor) that measures noise levels in kindergarten rooms. Data is periodically sent to the server for logging and analysis.
 
 This repository contains:
 - A RESTful API backend for monitoring sound levels in kindergarten rooms, built with Go and SQLite.
@@ -97,19 +97,20 @@ All endpoints require Basic Authentication:
 
 ### Endpoints
 
-| Method | Endpoint                | Description                        |
-|--------|-------------------------|------------------------------------|
-| GET    | `/api/data`             | Get all sound measurements         |
-| GET    | `/api/data/{id}`        | Get specific measurement           |
-| GET    | `/api/data/daily/{room}`| Get data based on roomName and time|
-| POST   | `/api/data`             | Create new measurement             |
-| PUT    | `/api/data`             | Update existing measurement        |
-| DELETE | `/api/data/{id}`        | Delete measurement                 |
-| GET    | `/api/locations`        | Get all locations                  |
-| GET    | `/api/locations/chosen` | Get currently chosen location      |
-| POST   | `/api/locations`        | Add a new location                 |
-| PUT    | `/api/locations/{id}`   | Set a location as currently chosen |
-| DELETE | `/api/locations/{id}`   | Delete a location                  |
+| Method | Endpoint                 | Description                                       |
+|--------|--------------------------|---------------------------------------------------|
+| GET    | `/api/data`              | Get all sound measurements                        |
+| GET    | `/api/data/{id}`         | Get specific measurement                          |
+| GET    | `/api/data/daily/{room}` | Get data based on roomName and time               |
+| GET    | `/api/data/weekly/{room}`| Get data for the last 5 weeks based on roomName   |
+| POST   | `/api/data`              | Create new measurement                            |
+| PUT    | `/api/data`              | Update existing measurement                       |
+| DELETE | `/api/data/{id}`         | Delete measurement                                |
+| GET    | `/api/locations`         | Get all locations                                 |
+| GET    | `/api/locations/chosen`  | Get currently chosen location                     |
+| POST   | `/api/locations`         | Add a new location                                |
+| PUT    | `/api/locations/{id}`    | Set a location as currently chosen                |
+| DELETE | `/api/locations/{id}`    | Delete a location                                 |
 
 ### Data Model
 
@@ -122,7 +123,8 @@ All endpoints require Basic Authentication:
   "threshold": 70.0,
   "measure_time": "2024-10-27T09:30:00Z",
   "is_alert": true,
-  "description": "Morning playtime noise peak"
+  "description": "Morning playtime noise peak",
+  "IsPeriodic": true
 }
 ```
 
@@ -141,7 +143,8 @@ curl -X POST http://localhost:8080/api/data \
     "threshold": 70.0,
     "measure_time": "2024-10-27T09:30:00Z",
     "is_alert": true,
-    "description": "Morning playtime noise peak"
+    "description": "Morning playtime noise peak",
+    "IsPeriodic": true
   }'
 ```
 
@@ -169,6 +172,7 @@ curl -X PUT http://localhost:8080/api/locations/1 \
 - **NoiseMeter**: Circular progress indicator with real-time updates, also has line indicator to see the set threshold level
 - **StatsCards**: Daily peak, weekly average, monitoring status
 - **NoiseAnalytics**: Interactive charts (daily/weekly analysis)
+- **ChartEmptyState**: Used to set the message when there is no data for the chosen chart
 - **AlertToast**: Pop-up notifications (auto-dismiss after 5s)
 - **AlertHistory**: List of today's alerts with count badge
 
@@ -200,14 +204,15 @@ frontend-react/src/
 │   ├── SettingsPanel.jsx
 │   ├── NoiseMeter.jsx
 │   ├── StatsCards.jsx
+│   ├── ChartEmptyState.jsx
 │   ├── NoiseAnalytics.jsx
 │   ├── AlertToast.jsx
 │   └── AlertHistory.jsx
 ├── services/
 │   └── api.js              # Axios client with auth
+├── styles/                 # Component-specific CSS
 ├── utils/
 │   └── audioUtils.js       # Alert sound playback
-├── styles/                 # Component-specific CSS
 └── App.js                  # Root component
 ```
 

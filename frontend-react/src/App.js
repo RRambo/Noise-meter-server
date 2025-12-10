@@ -24,7 +24,7 @@ function App() {
   // Placeholder state for current noise level
   // ! Need to replace with real data fetching from Arduino later
   const [currentNoiseLevel, setCurrentNoiseLevel] = useState(0);
-  const [latestData, setlatestData] = useState(null);
+  const [latestData, setlatestData] = useState(null); // if something else is needed besides the sound level
 
   // Stats data state - use sessionStorage for dailyPeak
   const [dailyPeak, setDailyPeak] = useState(() => {
@@ -331,7 +331,6 @@ function App() {
           setDailyPeak={setDailyPeak}
           getWeeklySummary={getWeeklySummary}
           setWeeklyAverage={setWeeklyAverage}
-          chosenThreshold={threshold}
         />
       </div>
     </div>

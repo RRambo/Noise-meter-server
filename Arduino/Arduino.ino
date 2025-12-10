@@ -31,7 +31,7 @@ const char* deviceID = "arduino_001";
 
 // ===== Pins & Sensor =====
 const int ledPin = 2;
-const int soundSensorPin = A3;
+const int soundSensorPin = A0;
 int thresholdADC = 0;   // Sound threshold as a raw ADC value (now mutable)
 double threshold = 70;  // Sound threshold (now mutable)
 
@@ -53,7 +53,7 @@ const unsigned long thresholdFetchInterval = 10UL * 1000UL;  // threshold update
 unsigned long lastConstantSent = 0;
 unsigned long checkConstantInterval = 3000;  // 3 sec
 
-const unsigned long blockSeconds = 60UL;  // --> 10 minutes
+const unsigned long blockSeconds = 600UL;  // --> 10 minutes
 const int blocksPerHour = 6;
 double calibrationFactor = 1.0;
 int currentBlockIndex = 0;
