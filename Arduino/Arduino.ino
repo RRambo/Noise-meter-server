@@ -292,6 +292,7 @@ void loop() {
 
   // === Send block data to the server ===
   sendData(deviceID, blockLeqReg_dB, threshold, "An average of measurements in a " + String(blockSeconds / 60) + " minute block", true);
+  delay(50);
   sendData(deviceID, peak_dB, threshold, "A peak of measurements in a " + String(blockSeconds / 60) + " minute block", true);
 }
 
@@ -315,9 +316,11 @@ void sendData(const char* idValue, double soundLevelValue, double thresholdValue
     client.beginBody();
     client.print(jsonData);
     client.endRequest();
-    /*
+
     int statusCode = client.responseStatusCode();
     String response = client.responseBody();
+    client.stop();
+    /* for debugging
     Serial.print("Data post status: ");
     Serial.println(statusCode);
     Serial.print("Response: ");
@@ -333,11 +336,12 @@ void fetchThreshold() {
   client.get("/api/locations/chosen");
   String auth = String(username) + ":" + String(passwordAuth);
   client.sendHeader("Authorization", "Basic " + base64Encode(auth));
+  client.sendHeader("Content-Type", "application/json");
   client.endRequest();
 
   int status = client.responseStatusCode();
   String body = client.responseBody();
-  /*
+  /* for debugging
   Serial.print("Threshold fetch status: ");
   Serial.println(status);
   Serial.print("Body: ");
