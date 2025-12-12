@@ -33,12 +33,11 @@ func DeleteHandler(w http.ResponseWriter, r *http.Request, logger *log.Logger, d
 
 	// * Check if the data was found and deleted
 	if aff == 0 {
-		w.WriteHeader(http.StatusNotFound)
-		w.Write([]byte(`{"error": "Resource not found."}`))
+		logger.Println("Could not delete data:", err, id)
+		http.Error(w, `{"error": "Resource not found."}`, http.StatusNotFound)
 		return
 	}
 
 	// * This is a Success, response in JSON and with a 204 status code when data was successfully deleted
 	w.WriteHeader(http.StatusNoContent)
 }
- 

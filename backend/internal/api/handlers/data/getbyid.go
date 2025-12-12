@@ -21,19 +21,29 @@ func GetByIDHandler(w http.ResponseWriter, r *http.Request, logger *log.Logger, 
 	if numID, err := strconv.Atoi(rawID); err == nil {
 		data, err := ds.ReadOne(numID, ctx)
 		//id, err := strconv.Atoi(r.PathValue("id"))
-		if err != nil {
-			// * This is a User Error: format of id is invalid, response in JSON and with a 400 status code
-			w.WriteHeader(http.StatusBadRequest)
-			w.Write([]byte(`{"error": "Missconfigured ID."}`))
-			return
-		}
-		if data == nil {
-			// * This is a User Error, response in JSON and with a 404 status code
-			w.WriteHeader(http.StatusNotFound)
-			w.Write([]byte(`{"error": "Resource not found."}`))
-			return
-		}
 
+		if err != nil {
+			switch err.(type) {
+			case service.DataError:
+				// * If the error is a DataError, handle it as a client error
+				w.WriteHeader(http.StatusBadRequest)
+				//w.Write([]byte(`{"error": "` + err.Error() + `"}`))
+				w.Write([]byte(`{"error": "Missconfigured ID."}`))
+				return
+			default:
+				// * If it is not a DataError, handle it as a server error
+				logger.Println("Error creating data:", err, data)
+				http.Error(w, "Internal server error.", http.StatusInternalServerError)
+				return
+			}
+		} else {
+			if data == nil {
+				// * This is a User Error, response in JSON and with a 404 status code
+				w.WriteHeader(http.StatusNotFound)
+				w.Write([]byte(`{"error": "Resource not found."}`))
+				return
+			}
+		}
 		//logger.Println("Received GET /api/data/{id} from Arduino:")
 		//logger.Printf("%+v\n", data)
 

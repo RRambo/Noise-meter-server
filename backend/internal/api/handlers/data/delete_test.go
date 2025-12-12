@@ -42,7 +42,7 @@ func TestDeleteError(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// req.SetPathValue("id", "1")
+	req.SetPathValue("id", "1")
 
 	rr := httptest.NewRecorder()
 	handlers.DeleteHandler(rr, req, log.Default(), mockDataService)
@@ -65,7 +65,7 @@ func TestDeleteNotFound(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// req.SetPathValue("id", "1")
+	req.SetPathValue("id", "1")
 
 	rr := httptest.NewRecorder()
 	handlers.DeleteHandler(rr, req, log.Default(), mockDataService)
@@ -88,7 +88,7 @@ func TestDeleteSuccessful(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// req.SetPathValue("id", "1")
+	req.SetPathValue("id", "1")
 
 	rr := httptest.NewRecorder()
 	handlers.DeleteHandler(rr, req, log.Default(), mockDataService)

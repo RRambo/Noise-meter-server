@@ -44,11 +44,11 @@ func TestPutHandlerError(t *testing.T) {
 	rr := httptest.NewRecorder()
 	data.PutHandler(rr, req, log.Default(), mockDS)
 
-	if rr.Code != http.StatusBadRequest {
-		t.Errorf("wrong status code: got %v, want %v", rr.Code, http.StatusBadRequest)
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("wrong status code: got %v, want %v", rr.Code, http.StatusInternalServerError)
 	}
 
-	expected := `{"error": "Error updating data."}`
+	expected := "Internal server error."
 	if strings.TrimSpace(rr.Body.String()) != expected {
 		t.Errorf("unexpected body: got %v, want %v", rr.Body.String(), expected)
 	}

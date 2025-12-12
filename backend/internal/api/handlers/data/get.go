@@ -36,8 +36,8 @@ func GetHandler(w http.ResponseWriter, r *http.Request, logger *log.Logger, ds s
 		return
 	}
 	if len(data) == 0 {
-		w.WriteHeader(http.StatusNotFound)
-		w.Write([]byte(`{"error": "Resource not found."}`))
+		logger.Println("Could not get data:", err, data)
+		http.Error(w, `{"error": "Resource not found."}`, http.StatusNotFound)
 		return
 	}
 

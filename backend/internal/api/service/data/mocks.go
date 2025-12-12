@@ -30,15 +30,19 @@ func (m *MockDataServiceSuccessful) ReadOne(id int, ctx context.Context) (*model
 }
 
 func (m *MockDataServiceSuccessful) ReadLatest(id string, ctx context.Context) (*models.Data, error) {
-	return &models.Data{
-		DeviceID:    id,
-		RoomName:    "Room_A",
-		SoundLevel:  60.0,
-		Threshold:   70.0,
-		MeasureTime: time.Now().Format(time.RFC3339),
-		IsAlert:     false,
-		Description: "mock data",
-	}, nil
+	if id == "invalid" {
+		return nil, &DataError{Message: "invalid id"}
+	} else {
+		return &models.Data{
+			DeviceID:    id,
+			RoomName:    "Room_A",
+			SoundLevel:  60.0,
+			Threshold:   70.0,
+			MeasureTime: time.Now().Format(time.RFC3339),
+			IsAlert:     false,
+			Description: "mock data",
+		}, nil
+	}
 }
 
 func (m *MockDataServiceSuccessful) ReadMany(page, rows int, ctx context.Context) ([]*models.Data, error) {
@@ -131,7 +135,7 @@ func (m *MockDataServiceError) Delete(d *models.Data, ctx context.Context) (int6
 	return 0, &DataError{Message: "Internal Server error"}
 }
 func (m *MockDataServiceError) ValidateData(d *models.Data) error {
-	return &DataError{Message: "Invalid data."}
+	return nil
 }
 func (m *MockDataServiceError) GetDailySummary(room string, date time.Time, ctx context.Context) ([]*models.Data, error) {
 	return nil, &DataError{Message: "Error fetching daily summary."}
@@ -147,34 +151,34 @@ func (m *MockDataServiceError) CleanOldData(ctx context.Context) error {
 type MockDataServiceNotFound struct{}
 
 func (m *MockDataServiceNotFound) Create(d *models.Data, ctx context.Context) error {
-	return &DataError{Message: "Resource not found."}
+	return nil
 }
 func (m *MockDataServiceNotFound) CreateLatest(d *models.Data, ctx context.Context) error {
-	return &DataError{Message: "Resource not found."}
+	return nil
 }
 func (m *MockDataServiceNotFound) ReadOne(id int, ctx context.Context) (*models.Data, error) {
-	return nil, &DataError{Message: "Resource not found."}
+	return nil, nil
 }
 func (m *MockDataServiceNotFound) ReadLatest(id string, ctx context.Context) (*models.Data, error) {
-	return nil, &DataError{Message: "Resource not found."}
+	return nil, nil
 }
 func (m *MockDataServiceNotFound) ReadMany(page, rows int, ctx context.Context) ([]*models.Data, error) {
-	return nil, &DataError{Message: "Resource not found."}
+	return []*models.Data{}, nil
 }
 func (m *MockDataServiceNotFound) Update(d *models.Data, ctx context.Context) (int64, error) {
-	return 0, &DataError{Message: "Resource not found."}
+	return 0, nil
 }
 func (m *MockDataServiceNotFound) Delete(d *models.Data, ctx context.Context) (int64, error) {
-	return 0, &DataError{Message: "Resource not found."}
+	return 0, nil
 }
 func (m *MockDataServiceNotFound) ValidateData(d *models.Data) error {
-	return &DataError{Message: "Resource not found."}
+	return nil
 }
 func (m *MockDataServiceNotFound) GetDailySummary(room string, date time.Time, ctx context.Context) ([]*models.Data, error) {
-	return nil, &DataError{Message: "Resource not found."}
+	return nil, nil
 }
 func (m *MockDataServiceNotFound) GetByRoom(room string, ctx context.Context) ([]*models.Data, error) {
-	return nil, &DataError{Message: "Resource not found."}
+	return nil, nil
 }
 func (m *MockDataServiceNotFound) CleanOldData(ctx context.Context) error {
 	return &DataError{Message: "Resource not found."}

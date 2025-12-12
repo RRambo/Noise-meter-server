@@ -36,7 +36,7 @@ func PutHandler(w http.ResponseWriter, r *http.Request, logger *log.Logger, ds s
 			return
 		default:
 			// * If it is not a DataError, handle it as a server error
-			logger.Println("Error creating data:", err, data)
+			logger.Println("Error updating data:", err, data)
 			http.Error(w, "Internal server error.", http.StatusInternalServerError)
 			return
 		}

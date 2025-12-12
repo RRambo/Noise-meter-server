@@ -59,11 +59,11 @@ func TestPostErrorCreatingData(t *testing.T) {
 	rr := httptest.NewRecorder()
 	data.PostHandler(rr, req, log.Default(), mockDS)
 
-	if rr.Code != http.StatusBadRequest {
-		t.Errorf("handler returned wrong status code: got %v want %v", rr.Code, http.StatusBadRequest)
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("handler returned wrong status code: got %v want %v", rr.Code, http.StatusInternalServerError)
 	}
 
-	expected := `{"error": "Error creating data."}`
+	expected := "Internal server error."
 	if strings.TrimSpace(rr.Body.String()) != expected {
 		t.Errorf("handler returned unexpected body: got %v want %v", rr.Body.String(), expected)
 	}

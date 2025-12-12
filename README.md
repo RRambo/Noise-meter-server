@@ -222,7 +222,7 @@ frontend-react/src/
 - **room_name:** Required (auto-filled with current chosen location if omitted)
 - **sound_level:** Required, range 0-150 dB
 - **threshold:** Required, default 70 db, range 0-150 dB
-- **measure_time:** Auro current timestamp if not provided
+- **measure_time:** Auto current timestamp if not provided
 - **description:** Optional text
 
 ## Authentication Configuration
